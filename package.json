@@ -1,0 +1,58 @@
+{
+  "name": "nuxt-bearer-auth",
+  "version": "0.1.0",
+  "description": "Reusable Nuxt authentication module for bearer-token APIs with Redis sessions and CSRF protection.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Enoch Tetteh",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "keywords": [
+    "nuxt",
+    "nuxt-module",
+    "auth",
+    "authentication",
+    "bearer-token",
+    "redis",
+    "csrf",
+    "laravel"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/module.d.ts",
+      "import": "./dist/module.mjs"
+    }
+  },
+  "main": "./dist/module.mjs",
+  "types": "./dist/module.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "nuxt-module-build",
+    "dev:prepare": "nuxt-module-build --stub",
+    "prepack": "nuxt-module-build",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "defu": "^6.1.4",
+    "ofetch": "^1.4.1",
+    "redis": "^5.11.0"
+  },
+  "peerDependencies": {
+    "nuxt": "^3.12.0 || ^4.0.0",
+    "nuxt-csurf": "^1.6.5"
+  },
+  "devDependencies": {
+    "@nuxt/module-builder": "^0.8.4",
+    "@nuxt/schema": "^3.12.0",
+    "@nuxt/kit": "^3.12.0",
+    "nuxt": "^3.12.0",
+    "typescript": "^5.5.0",
+    "vue-tsc": "^2.0.0"
+  },
+  "packageManager": "npm@10.0.0"
+}
