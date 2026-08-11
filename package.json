@@ -1,6 +1,6 @@
 {
   "name": "nuxt-bearer-auth",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Reusable Nuxt authentication module for bearer-token APIs with Redis sessions and CSRF protection.",
   "type": "module",
   "license": "MIT",
