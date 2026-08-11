@@ -7,7 +7,11 @@
   "author": "Enoch Tetteh",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git+https://github.com/paaqwesilowelltetteh/nuxt-bearer-auth.git"
+  },
+  "homepage": "https://github.com/paaqwesilowelltetteh/nuxt-bearer-auth#readme",
+  "bugs": {
+    "url": "https://github.com/paaqwesilowelltetteh/nuxt-bearer-auth/issues"
   },
   "keywords": [
     "nuxt",
