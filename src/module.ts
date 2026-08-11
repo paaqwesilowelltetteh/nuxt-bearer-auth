@@ -97,7 +97,7 @@ const defaultOptions = {
   twoFactorRequiredActions: ["two_factor_required", "2fa_required"],
 } satisfies Required<BearerAuthModuleOptions>;
 
-export default defineNuxtModule<BearerAuthModuleOptions>({
+const module = defineNuxtModule<BearerAuthModuleOptions>({
   meta: {
     name: "nuxt-bearer-auth",
     configKey: "bearerAuth",
@@ -241,4 +241,5 @@ export default defineNuxtModule<BearerAuthModuleOptions>({
   },
 });
 
+export default module;
 export type { BearerAuthModuleOptions } from "./types";

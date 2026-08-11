@@ -32,9 +32,9 @@
     "README.md"
   ],
   "scripts": {
-    "build": "nuxt-module-build",
+    "build": "nuxt-module-build build",
     "dev:prepare": "nuxt-module-build --stub",
-    "prepack": "nuxt-module-build",
+    "prepack": "nuxt-module-build build",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
