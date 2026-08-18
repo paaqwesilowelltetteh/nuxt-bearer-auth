@@ -12,10 +12,54 @@ export default defineEventHandler(async (event) => {
   try {
     const body = await readBody<Record<string, unknown>>(event);
 
-    if (!body.identifier || !body.password) {
+    if (!body || typeof body !== "object" || Object.keys(body).length === 0) {
       throw createError({
         statusCode: 422,
-        statusMessage: "Identifier and password are required",
+        statusMessage: "Login credentials are required",
+      });
+    }
+
+    // Flexible identifier detection: email, username, phone, mobile, identifier, or any non-password credential field
+    const hasCustomIdentifier = Object.keys(body).some(
+      (key) =>
+        key !== "password" &&
+        key !== "pass" &&
+        key !== "remember" &&
+        key !== "rememberMe" &&
+        Boolean(body[key]),
+    );
+
+    const identifier =
+      body.identifier ??
+      body.email ??
+      body.username ??
+      body.phone ??
+      body.mobile ??
+      body.phone_number ??
+      (hasCustomIdentifier ? true : undefined);
+
+    const password = body.password ?? body.pass;
+
+    if (!identifier && !password) {
+      throw createError({
+        statusCode: 422,
+        statusMessage:
+          "Login credentials are required. Provide an identifier (e.g. email, username, phone, mobile, or identifier) and a password.",
+      });
+    }
+
+    if (!identifier) {
+      throw createError({
+        statusCode: 422,
+        statusMessage:
+          "Login identifier is required (e.g. email, username, phone, mobile, or identifier).",
+      });
+    }
+
+    if (!password) {
+      throw createError({
+        statusCode: 422,
+        statusMessage: "Password is required.",
       });
     }
 

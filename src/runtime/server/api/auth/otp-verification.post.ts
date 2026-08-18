@@ -8,10 +8,42 @@ export default defineEventHandler(async (event) => {
   try {
     const body = await readBody<Record<string, unknown>>(event);
 
-    if (!body.otp || !body.identifier) {
+    if (!body || typeof body !== "object" || Object.keys(body).length === 0) {
       throw createError({
         statusCode: 422,
-        statusMessage: "OTP and identifier are required",
+        statusMessage: "OTP verification credentials are required",
+      });
+    }
+
+    const otp = body.otp ?? body.code;
+    const identifier =
+      body.identifier ??
+      body.email ??
+      body.phone ??
+      body.mobile ??
+      body.username ??
+      body.phone_number;
+
+    if (!otp && !identifier) {
+      throw createError({
+        statusCode: 422,
+        statusMessage:
+          "OTP code and identifier (e.g. email, phone, mobile, username, or identifier) are required.",
+      });
+    }
+
+    if (!otp) {
+      throw createError({
+        statusCode: 422,
+        statusMessage: "OTP code is required.",
+      });
+    }
+
+    if (!identifier) {
+      throw createError({
+        statusCode: 422,
+        statusMessage:
+          "Identifier is required for OTP verification (e.g. email, phone, mobile, username, or identifier).",
       });
     }
 

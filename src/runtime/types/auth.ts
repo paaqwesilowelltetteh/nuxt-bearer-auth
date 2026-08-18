@@ -38,8 +38,12 @@ export interface AuthApiResponse<T = unknown> {
 }
 
 export interface LoginCredentials {
-  identifier: string;
-  password: string;
+  identifier?: string;
+  email?: string;
+  username?: string;
+  phone?: string;
+  mobile?: string;
+  password?: string;
   [key: string]: unknown;
 }
 
