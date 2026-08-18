@@ -1,3 +1,4 @@
+import { defineNuxtPlugin } from "#app";
 import { getBearerAuthSession } from "../server/utils/sessions";
 import { useBearerAuth } from "../composables/useBearerAuth";
 

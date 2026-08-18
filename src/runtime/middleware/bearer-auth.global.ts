@@ -1,3 +1,4 @@
+import { defineNuxtRouteMiddleware, navigateTo, useRuntimeConfig } from "#app";
 import { useBearerAuth } from "../composables/useBearerAuth";
 
 export default defineNuxtRouteMiddleware(async (to) => {

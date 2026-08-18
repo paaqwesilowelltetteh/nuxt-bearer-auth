@@ -4,7 +4,7 @@ import {
 } from "../utils/sessions";
 import { isProductionRuntime } from "../utils/config";
 
-export default defineNitroPlugin(async () => {
+export default async function bearerAuthRedisPlugin() {
   try {
     await ensureBearerAuthRedisConnection();
   } catch (error) {
@@ -23,4 +23,4 @@ export default defineNitroPlugin(async () => {
     process.once("SIGTERM", cleanup);
     process.once("SIGINT", cleanup);
   }
-});
+}

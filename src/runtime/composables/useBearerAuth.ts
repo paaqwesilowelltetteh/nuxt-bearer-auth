@@ -1,3 +1,7 @@
+import { navigateTo, useRuntimeConfig, useState } from "#app";
+import { computed, watch } from "vue";
+import { $fetch } from "ofetch";
+
 import type {
   AuthApiResponse,
   AuthStatus,
