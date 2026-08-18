@@ -160,7 +160,7 @@ async function submit() {
 </script>
 ```
 
-`identifier` could be any string that identifies a user in your bacend. it could email, phone numder, username etc.
+`identifier` could be any string that identifies a user in your bacend. it could be email, phone numder, username etc.
 
 Available composable state and methods:
 
