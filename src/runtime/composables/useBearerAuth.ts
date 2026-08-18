@@ -1,4 +1,4 @@
-import { navigateTo, useRuntimeConfig, useState } from "#app";
+import { navigateTo, useNuxtApp, useRuntimeConfig, useState } from "#app";
 import { computed, watch } from "vue";
 import { $fetch } from "ofetch";
 
@@ -11,7 +11,11 @@ import type {
   SocialLoginCredentials,
 } from "../types/auth";
 
-declare const useCsrf: undefined | (() => { csrfFetch?: any });
+// nuxt-csurf v1.6+ returns { csrf, headerName } from useCsrf() — no csrfFetch property.
+// The CSRF-aware fetcher is instead provided as $csrfFetch via useNuxtApp().
+declare const useCsrf:
+  | undefined
+  | (() => { csrf?: string; headerName?: string; csrfFetch?: typeof $fetch });
 
 let serverCheckPromise: Promise<void> | null = null;
 let serverCheckResolve: (() => void) | null = null;
@@ -21,9 +25,25 @@ async function authFetch<T>(
   options: Parameters<typeof $fetch>[1] = {},
 ) {
   try {
-    const csrf = typeof useCsrf === "function" ? useCsrf() : null;
-    const fetcher = csrf?.csrfFetch || $fetch;
-    return await (fetcher as typeof $fetch)<T>(request, options);
+    // nuxt-csurf v1.6+ provides $csrfFetch on the Nuxt app instance (via its own plugin).
+    // Fall back to useCsrf()?.csrfFetch for older versions, then to plain $fetch.
+    let fetcher: typeof $fetch = $fetch;
+
+    if (import.meta.client) {
+      try {
+        const nuxtApp = useNuxtApp();
+        const $csrfFetch = (nuxtApp as any).$csrfFetch as typeof $fetch | undefined;
+        if ($csrfFetch) {
+          fetcher = $csrfFetch;
+        } else if (typeof useCsrf === "function") {
+          fetcher = useCsrf()?.csrfFetch || $fetch;
+        }
+      } catch {
+        // useNuxtApp() may throw outside a Nuxt context — safe to ignore
+      }
+    }
+
+    return await fetcher<T>(request, options);
   } catch (error) {
     throw error;
   }

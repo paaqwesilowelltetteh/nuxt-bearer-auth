@@ -147,6 +147,23 @@ const module = defineNuxtModule<BearerAuthModuleOptions>({
         addCsrfTokenToEventCtx: true,
         headerName: options.csrf.headerName,
       });
+
+      // Automatically disable CSRF enforcement on public auth endpoints.
+      // These routes are pre-authentication so they have no session to protect,
+      // and the authFetch in useBearerAuth sends the token via $csrfFetch already —
+      // but this guards against any edge case (e.g. client-side nav with no SSR meta tag).
+      const prefix = options.routes?.localApiPrefix || "/api/auth";
+      nuxt.options.routeRules = {
+        ...nuxt.options.routeRules,
+        [`${prefix}/login`]: { csurf: false, ...nuxt.options.routeRules?.[`${prefix}/login`] },
+        [`${prefix}/register`]: { csurf: false, ...nuxt.options.routeRules?.[`${prefix}/register`] },
+        [`${prefix}/social-login`]: { csurf: false, ...nuxt.options.routeRules?.[`${prefix}/social-login`] },
+        [`${prefix}/forgot-password`]: { csurf: false, ...nuxt.options.routeRules?.[`${prefix}/forgot-password`] },
+        [`${prefix}/reset-password`]: { csurf: false, ...nuxt.options.routeRules?.[`${prefix}/reset-password`] },
+        [`${prefix}/otp-verification`]: { csurf: false, ...nuxt.options.routeRules?.[`${prefix}/otp-verification`] },
+        [`${prefix}/resend-otp/**`]: { csurf: false, ...nuxt.options.routeRules?.[`${prefix}/resend-otp/**`] },
+        "/api/_csrf": { csurf: false, ...nuxt.options.routeRules?.["/api/_csrf"] },
+      };
     }
 
     addImports([
