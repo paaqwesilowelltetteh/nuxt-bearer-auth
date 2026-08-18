@@ -4,7 +4,7 @@ import type {
   BearerAuthResponsePaths,
 } from "../../../types";
 import { createError } from "h3";
-import { useRuntimeConfig } from "nitropack/runtime/config";
+import { useRuntimeConfig } from "#imports";
 
 export interface RuntimeBearerAuthConfig {
   apiBaseUrl: string;

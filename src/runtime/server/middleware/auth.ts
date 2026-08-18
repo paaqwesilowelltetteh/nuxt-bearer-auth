@@ -1,5 +1,5 @@
 import { createError, defineEventHandler, getRequestURL } from "h3";
-import { useRuntimeConfig } from "nitropack/runtime/config";
+import { useRuntimeConfig } from "#imports";
 import { getBearerAuthSession } from "../utils/sessions";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
