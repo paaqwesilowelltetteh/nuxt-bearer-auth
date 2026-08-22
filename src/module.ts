@@ -258,5 +258,8 @@ const module = defineNuxtModule<BearerAuthModuleOptions>({
   },
 });
 
+export type * from "./types";
+export type * from "./runtime/types/auth";
 export default module;
-export type { BearerAuthModuleOptions } from "./types";
+
+
