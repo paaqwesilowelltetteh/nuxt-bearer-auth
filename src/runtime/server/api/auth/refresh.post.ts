@@ -44,6 +44,7 @@ export default defineEventHandler(async (event) => {
     return {
       success: true,
       user: auth.user || session.profile,
+      ...(abilities ? { abilities } : {}),
       message: auth.message || "Session refreshed",
     };
   } catch (error) {

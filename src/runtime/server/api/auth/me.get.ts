@@ -16,6 +16,7 @@ export default defineEventHandler(async (event) => {
   if (!forceRefresh && session.profile) {
     return {
       user: session.profile,
+      ...(session.abilities ? { abilities: session.abilities } : {}),
     };
   }
 
@@ -43,6 +44,7 @@ export default defineEventHandler(async (event) => {
 
     return {
       user: auth.user,
+      ...(abilities ? { abilities } : {}),
     };
   } catch (error) {
     toPublicError(error, "Fetching authenticated user failed");

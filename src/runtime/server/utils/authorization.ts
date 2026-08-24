@@ -2,6 +2,16 @@ import { getBearerAuthConfig } from "./config";
 import { readFirstPath } from "./paths";
 import type { AuthorizationResponsePaths } from "../../../types";
 
+const DEFAULT_AUTHORIZATION_CONFIG = {
+  enabled: false,
+  responsePaths: {
+    roles: ["roles", "data.roles"],
+    permissions: ["permissions", "data.permissions"],
+    abilities: ["abilities", "data.abilities"],
+  },
+  rolePrefix: "role:",
+};
+
 /**
  * Normalizes authorization data from a backend response into a flat ability list.
  *
@@ -22,9 +32,17 @@ export function normalizeAuthorizationData(
   },
 ): string[] {
   const authConfig = getBearerAuthConfig();
+  const authorizationConfig = {
+    ...DEFAULT_AUTHORIZATION_CONFIG,
+    ...authConfig.authorization,
+    responsePaths: {
+      ...DEFAULT_AUTHORIZATION_CONFIG.responsePaths,
+      ...authConfig.authorization?.responsePaths,
+    },
+  };
   const responsePaths =
-    config?.responsePaths || authConfig.authorization.responsePaths;
-  const rolePrefix = config?.rolePrefix ?? authConfig.authorization.rolePrefix;
+    config?.responsePaths || authorizationConfig.responsePaths;
+  const rolePrefix = config?.rolePrefix ?? authorizationConfig.rolePrefix;
 
   const abilities = new Set<string>();
 
@@ -83,7 +101,7 @@ export function extractAuthorizationFromResponse(
 ): string[] | null {
   const config = getBearerAuthConfig();
 
-  if (!config.authorization.enabled) {
+  if (!(config.authorization?.enabled ?? false)) {
     return null;
   }
 

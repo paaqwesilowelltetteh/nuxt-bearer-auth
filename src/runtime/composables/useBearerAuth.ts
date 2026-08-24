@@ -114,6 +114,14 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
     return fallback;
   }
 
+  function syncAbilities(response: { abilities?: unknown }) {
+    if (Array.isArray(response.abilities)) {
+      abilities.value = response.abilities.filter(
+        (ability): ability is string => typeof ability === "string",
+      );
+    }
+  }
+
   async function completeAuthenticatedFlow(
     authenticatedUser: User | null | undefined,
     redirectPath?: string | null,
@@ -142,6 +150,7 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
           body: credentials,
         },
       );
+      syncAbilities(response);
 
       if (response.user && !response.nextAction) {
         await completeAuthenticatedFlow(response.user as User, redirectPath);
@@ -175,6 +184,7 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
           body: credentials,
         },
       );
+      syncAbilities(response);
 
       await completeAuthenticatedFlow(
         (response.user as User) || null,
@@ -204,6 +214,7 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
           body: payload,
         },
       );
+      syncAbilities(response);
 
       if (response.user) {
         await completeAuthenticatedFlow(response.user as User, redirectPath);
@@ -236,6 +247,7 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
           body: payload,
         },
       );
+      syncAbilities(response);
 
       if (response.user) {
         await completeAuthenticatedFlow(response.user as User, redirectPath);
@@ -272,12 +284,13 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
 
     try {
       const query = options.refresh ? "?refresh=true" : "";
-      const response = await authFetch<{ user: User | null }>(
-        `${apiPrefix}/me${query}`,
-        {
-          method: "GET",
-        },
-      );
+      const response = await authFetch<{
+        user: User | null;
+        abilities?: string[] | null;
+      }>(`${apiPrefix}/me${query}`, {
+        method: "GET",
+      });
+      syncAbilities(response);
 
       user.value = response.user || null;
       status.value = user.value ? "authenticated" : "unauthenticated";
@@ -300,6 +313,7 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
           method: "POST",
         },
       );
+      syncAbilities(response);
 
       if (response.user) {
         user.value = response.user as User;

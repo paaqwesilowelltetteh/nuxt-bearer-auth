@@ -45,6 +45,7 @@ export interface AuthApiResponse<T = unknown> {
   message?: string;
   data?: T;
   user?: BearerAuthUser | null;
+  abilities?: string[] | null;
   code?: string | number;
   nextAction?: string;
 }

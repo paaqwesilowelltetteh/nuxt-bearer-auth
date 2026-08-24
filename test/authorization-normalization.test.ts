@@ -339,5 +339,18 @@ describe("authorization normalization", () => {
       expect(response.abilities).toBe(originalAbilities);
       expect(response.roles).toBe(originalRoles);
     });
+
+    it("does not expose authentication secrets that are outside authorization paths", () => {
+      const response = {
+        token: "bearer-secret",
+        access_token: "access-secret",
+        refresh_token: "refresh-secret",
+        password: "password-secret",
+        otp: "123456",
+        user: { token: "nested-secret" },
+      };
+
+      expect(normalizeAuthorizationData(response)).toEqual([]);
+    });
   });
 });

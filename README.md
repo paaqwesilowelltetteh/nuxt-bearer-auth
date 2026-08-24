@@ -21,6 +21,7 @@ Reusable Nuxt authentication for APIs that issue bearer tokens. It is designed f
 - Session revocation
 - SSR auth hydration
 - Global route middleware
+- Optional authorization foundation (disabled by default)
 - `useBearerAuth()` composable
 - `useAuth()` alias for convenience
 
@@ -180,7 +181,44 @@ Available composable state and methods:
 - `forgotPassword`
 - `resetPassword`
 - `resendOtp`
+- `abilities`
+- `can(ability)`
+- `cannot(ability)`
 - `clearAuthState`
+
+## Authorization Foundation
+
+Authorization is opt-in and does not enforce routes or API requests. Backend roles, permissions, and direct abilities are normalized into a sorted `string[]`. Roles use the `role:` prefix by default.
+
+```ts
+export default defineNuxtConfig({
+  bearerAuth: {
+    authorization: {
+      enabled: true,
+      source: "session",
+      responsePaths: {
+        abilities: ["abilities", "data.abilities"],
+        roles: ["roles", "data.roles"],
+        permissions: ["permissions", "data.permissions"],
+      },
+      rolePrefix: "role:",
+    },
+  },
+});
+```
+
+```ts
+const auth = useBearerAuth();
+
+await auth.login(credentials);
+auth.can("campaign.create");
+auth.cannot("campaign.delete");
+auth.abilities.value;
+```
+
+Abilities are persisted with the server session and hydrated during SSR. Login, social login, registration, OTP verification, refresh, and `me` responses can update them. An omitted authorization field preserves the current list; logout and failed authentication clear it. Client checks are advisory only. Tokens, passwords, OTPs, and raw backend responses are never authorization state.
+
+Route authorization, UI components/directives, server authorization guards, endpoint-source fetching, policy engines, and authorization databases are not implemented in this phase.
 
 ## Redis Sessions
 

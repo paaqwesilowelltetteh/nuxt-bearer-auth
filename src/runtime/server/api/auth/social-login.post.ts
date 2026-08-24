@@ -3,6 +3,7 @@ import { callAuthApi, getAuthEndpoint } from "../../utils/external-api";
 import { toPublicError } from "../../utils/errors";
 import { normalizeAuthResponse } from "../../utils/normalize";
 import { createBearerAuthSession } from "../../utils/sessions";
+import { extractAuthorizationFromResponse } from "../../utils/authorization";
 
 export default defineEventHandler(async (event) => {
   try {
@@ -21,6 +22,7 @@ export default defineEventHandler(async (event) => {
       body,
     });
     const auth = normalizeAuthResponse(response);
+    const abilities = extractAuthorizationFromResponse(response);
 
     if (!auth.token || !auth.userId) {
       throw createError({
@@ -34,11 +36,13 @@ export default defineEventHandler(async (event) => {
       token: auth.token,
       refreshToken: auth.refreshToken,
       profile: auth.user,
+      abilities,
     });
 
     return {
       success: true,
       user: auth.user,
+      ...(abilities ? { abilities } : {}),
       message: auth.message || "Login successful",
     };
   } catch (error) {

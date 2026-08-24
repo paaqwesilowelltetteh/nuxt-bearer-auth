@@ -23,6 +23,8 @@ let mockPublicConfig = {
   },
 };
 
+let mockAuthorizationEnabled = false;
+
 vi.mock("#imports", () => ({
   useRuntimeConfig: () => ({
     public: {
@@ -39,7 +41,7 @@ vi.mock("../src/runtime/server/utils/sessions", () => ({
 vi.mock("../src/runtime/server/utils/config", () => ({
   getBearerAuthConfig: () => ({
     authorization: {
-      enabled: false,
+      enabled: mockAuthorizationEnabled,
       source: "session",
       endpoint: "",
       responsePaths: {},
@@ -92,6 +94,44 @@ describe("Nitro server middleware/auth", () => {
     await authServerMiddleware(event);
     expect(mockGetBearerAuthSession).toHaveBeenCalledWith(event);
     expect(event.context.auth).toEqual(mockSession);
+    expect(event.context.authorization).toBeUndefined();
+  });
+
+  it("attaches separate normalized authorization context when enabled", async () => {
+    mockAuthorizationEnabled = true;
+    const mockSession = {
+      userId: "u1",
+      token: "secret",
+      refreshToken: "refresh-secret",
+      profile: { name: "Alice" },
+      abilities: ["campaign.create", "role:admin"],
+    };
+    const event = createMockH3Event("/api/custom/resource", "GET", mockSession);
+
+    await authServerMiddleware(event);
+
+    expect(event.context.auth).toEqual(mockSession);
+    expect(event.context.authorization).toEqual({
+      abilities: ["campaign.create", "role:admin"],
+      source: "session",
+    });
+    expect(event.context.authorization).not.toHaveProperty("token");
+    expect(event.context.authorization).not.toHaveProperty("refreshToken");
+    mockAuthorizationEnabled = false;
+  });
+
+  it("does not attach authorization context when disabled", async () => {
+    const mockSession = {
+      userId: "u1",
+      token: "secret",
+      abilities: ["campaign.create"],
+    };
+    const event = createMockH3Event("/api/custom/resource", "GET", mockSession);
+
+    await authServerMiddleware(event);
+
+    expect(event.context.auth).toEqual(mockSession);
+    expect(event.context.authorization).toBeUndefined();
   });
 
   it("throws 401 on protectedApiPrefixes when no session exists", async () => {
