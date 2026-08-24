@@ -13,10 +13,12 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   try {
     const session = await getBearerAuthSession(event);
     auth.setUser(session?.profile || null);
+    auth.setAbilities(session?.abilities || null);
 
     nuxtApp.payload.bearerAuth = {
       user: session?.profile || null,
       status: session?.profile ? "authenticated" : "unauthenticated",
+      abilities: session?.abilities || null,
     };
   } catch (error) {
     console.error("[nuxt-bearer-auth] SSR auth hydration failed:", error);
@@ -24,6 +26,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     nuxtApp.payload.bearerAuth = {
       user: null,
       status: "unauthenticated",
+      abilities: null,
     };
   } finally {
     auth.setAuthReady(true);

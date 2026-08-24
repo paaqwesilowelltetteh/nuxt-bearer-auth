@@ -6,6 +6,7 @@ import {
   requireBearerAuthSession,
   updateBearerAuthSession,
 } from "../../utils/sessions";
+import { extractAuthorizationFromResponse } from "../../utils/authorization";
 
 export default defineEventHandler(async (event) => {
   const session = requireBearerAuthSession(event);
@@ -32,7 +33,13 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    await updateBearerAuthSession(event, { profile: auth.user });
+    // Extract authorization if present in response (optional)
+    const abilities = extractAuthorizationFromResponse(response);
+
+    await updateBearerAuthSession(event, {
+      profile: auth.user,
+      abilities: abilities ?? session.abilities,
+    });
 
     return {
       user: auth.user,

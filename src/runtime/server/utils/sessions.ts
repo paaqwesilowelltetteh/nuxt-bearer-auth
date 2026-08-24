@@ -83,6 +83,7 @@ export async function createBearerAuthSession<User extends BearerAuthUser>(
     token: string;
     refreshToken?: string | null;
     profile?: User | null;
+    abilities?: string[] | null;
   },
 ) {
   const redis = await ensureBearerAuthRedisConnection();
@@ -96,6 +97,7 @@ export async function createBearerAuthSession<User extends BearerAuthUser>(
     token: input.token,
     refreshToken: input.refreshToken || null,
     profile: input.profile || null,
+    abilities: input.abilities || null,
     createdAt: now,
     expiresAt: Date.now() + duration * 1000,
     lastActivity: now,
@@ -104,7 +106,11 @@ export async function createBearerAuthSession<User extends BearerAuthUser>(
   };
 
   const multi = redis.multi();
-  multi.setEx(`${SESSION_PREFIX}${sessionId}`, duration, JSON.stringify(session));
+  multi.setEx(
+    `${SESSION_PREFIX}${sessionId}`,
+    duration,
+    JSON.stringify(session),
+  );
   multi.sAdd(`${USER_SESSIONS_PREFIX}${input.userId}`, sessionId);
   multi.expire(`${USER_SESSIONS_PREFIX}${input.userId}`, duration);
   await multi.exec();
@@ -116,7 +122,12 @@ export async function createBearerAuthSession<User extends BearerAuthUser>(
 
 export async function updateBearerAuthSession<User extends BearerAuthUser>(
   event: H3Event,
-  updates: Partial<Pick<BearerAuthSession<User>, "token" | "refreshToken" | "profile">>,
+  updates: Partial<
+    Pick<
+      BearerAuthSession<User>,
+      "token" | "refreshToken" | "profile" | "abilities"
+    >
+  >,
 ) {
   const sessionId = getBearerAuthSessionCookie(event);
   if (!sessionId) return false;

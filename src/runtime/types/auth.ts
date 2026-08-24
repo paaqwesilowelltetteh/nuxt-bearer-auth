@@ -1,4 +1,8 @@
-export type AuthStatus = "idle" | "loading" | "authenticated" | "unauthenticated";
+export type AuthStatus =
+  | "idle"
+  | "loading"
+  | "authenticated"
+  | "unauthenticated";
 
 export interface BearerAuthUser {
   id?: string | number;
@@ -8,7 +12,9 @@ export interface BearerAuthUser {
   [key: string]: unknown;
 }
 
-export interface BearerAuthSession<User extends BearerAuthUser = BearerAuthUser> {
+export interface BearerAuthSession<
+  User extends BearerAuthUser = BearerAuthUser,
+> {
   userId: string;
   token: string;
   refreshToken?: string | null;
@@ -18,6 +24,12 @@ export interface BearerAuthSession<User extends BearerAuthUser = BearerAuthUser>
   lastActivity: string;
   userAgent?: string;
   ipAddress?: string;
+  abilities?: string[] | null;
+}
+
+export interface AuthorizationState {
+  abilities: string[];
+  source?: "session" | "endpoint";
 }
 
 export interface PublicSession {

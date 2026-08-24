@@ -66,6 +66,25 @@ export interface BearerAuthCsrfOptions {
   };
 }
 
+// Authorization types
+export type Ability = string;
+
+export type AuthorizationSource = "session" | "endpoint";
+
+export interface AuthorizationResponsePaths {
+  roles?: string[];
+  permissions?: string[];
+  abilities?: string[];
+}
+
+export interface BearerAuthAuthorizationConfig {
+  enabled: boolean;
+  source: AuthorizationSource;
+  endpoint?: string;
+  responsePaths: AuthorizationResponsePaths;
+  rolePrefix: string;
+}
+
 export interface BearerAuthModuleOptions {
   apiBaseUrl?: string;
   redisUrl?: string;
@@ -78,6 +97,7 @@ export interface BearerAuthModuleOptions {
   routes?: Partial<BearerAuthRouteOptions>;
   sessionCookie?: Partial<BearerAuthCookieOptions>;
   csrf?: Partial<BearerAuthCsrfOptions>;
+  authorization?: Partial<BearerAuthAuthorizationConfig>;
   verificationRequiredActions?: string[];
   twoFactorRequiredActions?: string[];
 }

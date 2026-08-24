@@ -5,6 +5,7 @@ import {
   requireBearerAuthSession,
   updateBearerAuthSession,
 } from "../../utils/sessions";
+import { extractAuthorizationFromResponse } from "../../utils/authorization";
 import { createError, defineEventHandler } from "h3";
 
 export default defineEventHandler(async (event) => {
@@ -15,7 +16,10 @@ export default defineEventHandler(async (event) => {
       event,
       method: "POST",
       body: session.refreshToken
-        ? { refresh_token: session.refreshToken, refreshToken: session.refreshToken }
+        ? {
+            refresh_token: session.refreshToken,
+            refreshToken: session.refreshToken,
+          }
         : {},
     });
     const auth = normalizeAuthResponse(response);
@@ -27,10 +31,14 @@ export default defineEventHandler(async (event) => {
       });
     }
 
+    // Extract authorization if present in response (optional)
+    const abilities = extractAuthorizationFromResponse(response);
+
     await updateBearerAuthSession(event, {
       token: auth.token,
       refreshToken: auth.refreshToken || session.refreshToken,
       profile: auth.user || session.profile,
+      abilities: abilities ?? session.abilities,
     });
 
     return {

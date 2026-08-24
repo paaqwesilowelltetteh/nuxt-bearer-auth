@@ -7,6 +7,7 @@ import {
   requiresVerification,
 } from "../../utils/normalize";
 import { createBearerAuthSession } from "../../utils/sessions";
+import { extractAuthorizationFromResponse } from "../../utils/authorization";
 
 export default defineEventHandler(async (event) => {
   try {
@@ -95,6 +96,7 @@ export default defineEventHandler(async (event) => {
       token: auth.token,
       refreshToken: auth.refreshToken,
       profile: auth.user,
+      abilities: extractAuthorizationFromResponse(response),
     });
 
     return {

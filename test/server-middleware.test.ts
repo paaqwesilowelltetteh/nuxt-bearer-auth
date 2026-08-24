@@ -36,11 +36,27 @@ vi.mock("../src/runtime/server/utils/sessions", () => ({
   getBearerAuthSession: (...args: any[]) => mockGetBearerAuthSession(...args),
 }));
 
+vi.mock("../src/runtime/server/utils/config", () => ({
+  getBearerAuthConfig: () => ({
+    authorization: {
+      enabled: false,
+      source: "session",
+      endpoint: "",
+      responsePaths: {},
+      rolePrefix: "role:",
+    },
+  }),
+}));
+
 import authServerMiddleware from "../src/runtime/server/middleware/auth";
 
-function createMockH3Event(pathname: string, method: string = "GET", session: any = null) {
+function createMockH3Event(
+  pathname: string,
+  method: string = "GET",
+  session: any = null,
+) {
   mockGetBearerAuthSession.mockResolvedValue(session);
-  
+
   const socket = new Socket();
   const req = new IncomingMessage(socket);
   req.method = method;
@@ -81,12 +97,16 @@ describe("Nitro server middleware/auth", () => {
   it("throws 401 on protectedApiPrefixes when no session exists", async () => {
     const event = createMockH3Event("/api/custom/resource", "GET", null);
 
-    await expect(authServerMiddleware(event)).rejects.toThrow("Authentication required");
+    await expect(authServerMiddleware(event)).rejects.toThrow(
+      "Authentication required",
+    );
   });
 
   it("throws 401 on POST to non-public /api route when no session exists", async () => {
     const event = createMockH3Event("/api/projects", "POST", null);
 
-    await expect(authServerMiddleware(event)).rejects.toThrow("Authentication required");
+    await expect(authServerMiddleware(event)).rejects.toThrow(
+      "Authentication required",
+    );
   });
 });

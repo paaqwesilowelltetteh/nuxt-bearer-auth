@@ -32,7 +32,9 @@ async function authFetch<T>(
     if (import.meta.client) {
       try {
         const nuxtApp = useNuxtApp();
-        const $csrfFetch = (nuxtApp as any).$csrfFetch as typeof $fetch | undefined;
+        const $csrfFetch = (nuxtApp as any).$csrfFetch as
+          | typeof $fetch
+          | undefined;
         if ($csrfFetch) {
           fetcher = $csrfFetch;
         } else if (typeof useCsrf === "function") {
@@ -68,7 +70,14 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
   const status = useState<AuthStatus>("bearer-auth-status", () => "idle");
   const ready = useState<boolean>("bearer-auth-ready", () => false);
   const error = useState<string | null>("bearer-auth-error", () => null);
-  const serverChecked = useState<boolean>("bearer-auth-server-checked", () => false);
+  const serverChecked = useState<boolean>(
+    "bearer-auth-server-checked",
+    () => false,
+  );
+  const abilities = useState<string[] | null>(
+    "bearer-auth-abilities",
+    () => null,
+  );
 
   const serverReady = computed(() => {
     if (import.meta.client || serverChecked.value) {
@@ -93,11 +102,12 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
       typeof err === "object" &&
       err !== null &&
       "data" in err &&
-      typeof (err as { data?: { message?: string; statusMessage?: string } }).data ===
-        "object"
+      typeof (err as { data?: { message?: string; statusMessage?: string } })
+        .data === "object"
     ) {
-      const data = (err as { data?: { message?: string; statusMessage?: string } })
-        .data;
+      const data = (
+        err as { data?: { message?: string; statusMessage?: string } }
+      ).data;
       return data?.message || data?.statusMessage || fallback;
     }
 
@@ -117,15 +127,21 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
     }
   }
 
-  async function login(credentials: LoginCredentials, redirectPath?: string | null) {
+  async function login(
+    credentials: LoginCredentials,
+    redirectPath?: string | null,
+  ) {
     status.value = "loading";
     error.value = null;
 
     try {
-      const response = await authFetch<AuthApiResponse<User>>(`${apiPrefix}/login`, {
-        method: "POST",
-        body: credentials,
-      });
+      const response = await authFetch<AuthApiResponse<User>>(
+        `${apiPrefix}/login`,
+        {
+          method: "POST",
+          body: credentials,
+        },
+      );
 
       if (response.user && !response.nextAction) {
         await completeAuthenticatedFlow(response.user as User, redirectPath);
@@ -160,7 +176,10 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
         },
       );
 
-      await completeAuthenticatedFlow((response.user as User) || null, redirectPath);
+      await completeAuthenticatedFlow(
+        (response.user as User) || null,
+        redirectPath,
+      );
       return response;
     } catch (err) {
       error.value = resolveErrorMessage(err, "Social login failed");
@@ -178,10 +197,13 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
     error.value = null;
 
     try {
-      const response = await authFetch<AuthApiResponse<User>>(`${apiPrefix}/register`, {
-        method: "POST",
-        body: payload,
-      });
+      const response = await authFetch<AuthApiResponse<User>>(
+        `${apiPrefix}/register`,
+        {
+          method: "POST",
+          body: payload,
+        },
+      );
 
       if (response.user) {
         await completeAuthenticatedFlow(response.user as User, redirectPath);
@@ -233,14 +255,16 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
 
   async function fetchUser(options: FetchUserOptions = {}) {
     if (status.value === "loading") {
-      return new Promise<{ data: User | null; error: string | null }>((resolve) => {
-        const unwatch = watch(status, (newStatus) => {
-          if (newStatus !== "loading") {
-            unwatch();
-            resolve({ data: user.value, error: error.value });
-          }
-        });
-      });
+      return new Promise<{ data: User | null; error: string | null }>(
+        (resolve) => {
+          const unwatch = watch(status, (newStatus) => {
+            if (newStatus !== "loading") {
+              unwatch();
+              resolve({ data: user.value, error: error.value });
+            }
+          });
+        },
+      );
     }
 
     status.value = "loading";
@@ -270,9 +294,12 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
 
   async function refresh() {
     try {
-      const response = await authFetch<AuthApiResponse<User>>(`${apiPrefix}/refresh`, {
-        method: "POST",
-      });
+      const response = await authFetch<AuthApiResponse<User>>(
+        `${apiPrefix}/refresh`,
+        {
+          method: "POST",
+        },
+      );
 
       if (response.user) {
         user.value = response.user as User;
@@ -315,11 +342,17 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
     });
   }
 
-  async function resendOtp(identifier: string, payload: Record<string, unknown> = {}) {
-    return await authFetch(`${apiPrefix}/resend-otp/${encodeURIComponent(identifier)}`, {
-      method: "POST",
-      body: payload,
-    });
+  async function resendOtp(
+    identifier: string,
+    payload: Record<string, unknown> = {},
+  ) {
+    return await authFetch(
+      `${apiPrefix}/resend-otp/${encodeURIComponent(identifier)}`,
+      {
+        method: "POST",
+        body: payload,
+      },
+    );
   }
 
   function setServerChecked() {
@@ -338,10 +371,24 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
     status.value = value ? "authenticated" : "unauthenticated";
   }
 
+  function setAbilities(value: string[] | null) {
+    abilities.value = value;
+  }
+
+  function can(ability: string): boolean {
+    if (!abilities.value) return false;
+    return abilities.value.includes(ability);
+  }
+
+  function cannot(ability: string): boolean {
+    return !can(ability);
+  }
+
   function clearAuthState() {
     user.value = null;
     error.value = null;
     status.value = "unauthenticated";
+    abilities.value = null;
   }
 
   return {
@@ -352,6 +399,7 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
     loading,
     isAuthenticated,
     serverReady,
+    abilities,
     login,
     socialLogin,
     register,
@@ -362,7 +410,10 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
     forgotPassword,
     resetPassword,
     resendOtp,
+    can,
+    cannot,
     setUser,
+    setAbilities,
     setAuthReady,
     setServerChecked,
     clearAuthState,
