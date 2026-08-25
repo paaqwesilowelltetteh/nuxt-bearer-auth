@@ -44,33 +44,52 @@ Website documentation is synchronized (Authorization guide added to `nuxt-bearer
 
 ## Phase 3 Release-Readiness Audit
 
-Status: **remediation complete; final validation battery pending shell recovery** (the terminal stopped spawning processes mid-audit; see "Pending" below).
+Status: **final validation battery EXECUTED against HEAD `2e4f653`; results below** (re-run during the follow-up audit after the prior session's terminal failure).
 
-### Verified by execution during this audit
+### Executed validation results (this tree)
 
-- Baseline reproduced independently: HEAD (`f75e3b1`) typechecks with **exactly 20 errors** via isolated `git archive` checkout — previous claim confirmed.
-- Lockfile is **in sync**: `npm ci --dry-run` exits 0. Earlier staleness reports are obsolete.
-- `npx nuxi prepare` succeeds in this repository (generates `.nuxt/` types).
-- Typecheck was driven from 20 errors → **0 errors**, observed live at each step, including `npm run typecheck` exit code 0. Root causes fixed:
-  - `#app`/`#imports` resolution + implicit-any params: `tsconfig.json` now extends `.nuxt/tsconfig.json` (standard Nuxt module convention; requires `npm run dev:prepare`, which now chains `nuxi prepare`).
-  - ofetch `FetchOptions` variance in `useBearerAuth.ts`: options typed as `FetchOptions<"json">`.
-  - Missing `routeRules` on `NuxtOptions` and untyped runtime-config namespaces: declaration merging in new `src/augmentations.ts` (with typed `BearerAuthPrivateRuntimeConfig` / `BearerAuthPublicRuntimeConfig` in `src/types.ts`). Ambient `.d.ts` placement did not merge and `skipLibCheck` hid that; importing `nitropack/types` from `module.ts` broke unbuild's dts rollup, hence the dedicated file outside the build graph.
-  - defu `unknown`/`nullish` inference: explicit generics on both runtime-config `defu` calls. No `as any`, no ts-ignore, strict mode intact.
-- Tests after the first remediation batch: **117/117 passing**.
-- Build failure discovered and root-caused: `nitropack/types` inside `module.ts` crashes unbuild dts generation ("keyword 'interface' is reserved"); fixed by relocating augmentations to `src/augmentations.ts`.
+| Check                       | Result                                                                                                                                                                                                                 |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `git status` / working tree | clean — zero modified/untracked files; HEAD = `2e4f653` on `phase-2/authorization-foundation`                                                                                                                          |
+| `npm ci --dry-run`          | **exit 0** — lockfile in sync                                                                                                                                                                                          |
+| `npm run dev:prepare`       | **exit 0**, `.nuxt/` types generated (pre-existing benign ERROR from `@nuxt/module-builder`'s post-stub jiti load of `import.meta.url`, present at baseline `f75e3b1` line 121; does not affect exit codes or outputs) |
+| `npm test`                  | **exit 0 — 13 test files, 125/125 passing** (prior "126 expected" figure was a miscount; 125 is the actual suite size)                                                                                                 |
+| `npm run build`             | **exit 0**, dist 513 kB                                                                                                                                                                                                |
+| `npm run typecheck`         | **exit 0 — 0 errors** (`vue-tsc --noEmit`; baseline was 20 errors)                                                                                                                                                     |
+| Bundle boundary             | `dist/module.mjs`: **0** occurrences of `requireAbility`; `dist/runtime/server/utils/authorization.{js,d.ts}` emitted with the export                                                                                  |
+| `npm pack --dry-run`        | **exit 0** — 61 files: dist + README + LICENSE + package.json only; no tests/.git/temp artifacts; tarball 32.9 kB                                                                                                      |
 
-### Changes requiring re-validation (terminal died before reruns)
+### Remediation batch re-validated successfully
 
-Applied after the last successful execution — each is syntax-verified by direct file review but **not yet machine-validated**:
+All changes previously listed as "requiring re-validation" are confirmed green on this tree:
 
-- Fail-closed hardening: both `hasRequiredAbilities` implementations now reject malformed (non-array) ability state instead of throwing a 500.
-- +9 regression tests: malformed session abilities fail closed (5 shapes), empty requirement list semantics, case-sensitivity, role-prefix non-implication, duplicate requirements, empty metadata array, malformed client state fail-closed route behavior, logout clears client abilities.
-- `src/module.d.ts` deleted (dead: excluded from program, ignored by unbuild); content superseded by `src/augmentations.ts`.
-- Expected results when validated: tests 126/126, build exit 0, typecheck exit 0 with 0 errors.
+- Fail-closed hardening in both `hasRequiredAbilities` implementations — covered by `malformed session ability data` (5 shapes), `malformed client ability state` route test, and the temporary consumer matrix (where executed).
+- +9 regression tests present in `test/authorization-enforcement.test.ts`, `test/route-middleware.test.ts`, `test/authorization-client.test.ts`.
+- `src/module.d.ts` deletion — build/typecheck green confirms it was dead.
+- Prior claim corrected: predicted "126 tests" → actual **125**; documentation updated to the real number.
 
-Run `bash /tmp/phase3-validate.sh` (writes `/tmp/phase3-audit-results.txt`) or manually: `npm run dev:prepare && npm test && npm run build && npm run typecheck`.
+### Website audit
 
-### Not yet performed
+Documentation drift vs Phase 2/3 found and corrected in `nuxt-bearer-auth-website/app/data/docs.ts`:
 
-- Temporary consumer Nuxt application build against an `npm pack` tarball (§12 of audit brief).
-- Post-fix website rebuild (previous build passed before these changes; docs unchanged since).
+- SSR payload samples/lists updated to include `abilities` (matches `bearer-auth.server.ts`).
+- `BearerAuthSession` sample type now shows `abilities?: string[] | null`.
+- Public type exports list now includes the authorization types actually exported from the root entry.
+- API reference now documents `auth.abilities`, `can()`, `cannot()`.
+- Testing Foundation counts updated (was stale at "10 suites · 66 tests").
+- No `<Can>`/`<Cannot>`/`v-can`/wildcard-as-supported claims; three-layer model, 401≠403, exact matching, and backend-authoritative statements are accurate.
+
+Website rebuild: **pending** (terminal instability — see limitations).
+
+### Environment limitations
+
+The terminal repeatedly stopped spawning/completing processes mid-audit (same failure mode as the previous session). Executed checks above all completed BEFORE the failure; afterwards only file-based work continued. Items not executable this session are classified UNVERIFIED, never assumed passing:
+
+- Temporary consumer Nuxt application build against an `npm pack` tarball (§12–13): **UNVERIFIED** this session (tarball was produced at `/tmp/nuxt-bearer-auth-0.1.7.tgz`; install/build steps blocked by terminal failure).
+- Post-fix website rebuild: **UNVERIFIED** (docs-only edits; previous build passed).
+
+### Non-blocking notes
+
+- `.markdown-collab/.mcp-server.json` is git-tracked and contains a localhost MCP token; predates this audit, excluded from the npm package by the `files` whitelist. Recommend untracking/gitignoring it separately.
+- `dev:prepare` stub-load warning is a tooling interplay (@nuxt/module-builder jiti validation), pre-existing at the Phase 3 baseline, harmless.
+- `dist/runtime/server/utils/sessions.d.ts` is ~440 kB (unbuild inlines redis client types); cosmetic bloat only.
