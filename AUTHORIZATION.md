@@ -29,6 +29,39 @@ auth.abilities.value;
 
 Checks are exact string membership. Missing abilities return `false` from `can()` and `true` from `cannot()`.
 
+## UI Authorization Components (Phase 4)
+
+`<Can>` and `<Cannot>` are auto-imported declarative primitives over the same client ability state used by `can()`/`cannot()`:
+
+```vue
+<!-- single ability -->
+<Can ability="users.delete">Delete</Can>
+
+<!-- every listed ability required (default mode: "all") -->
+<Can :abilities="['users.view', 'users.edit']">Edit</Can>
+
+<!-- at least one required -->
+<Can :abilities="['reports.view', 'reports.export']" mode="any">Export</Can>
+
+<!-- inverse rendering with optional fallback -->
+<Cannot ability="users.delete">
+  <template #fallback>Request access</template>
+</Cannot>
+```
+
+- Props: `ability?: string`, `abilities?: string[]`, `mode?: "all" | "any"`. When both props are provided, `ability` wins.
+- Matching is exact string equality using the frozen Phase 3 route/server semantics. An explicit empty `abilities` array — or no props at all — means "no restriction". A provided but non-array `abilities` value fails closed.
+- Authorized renders the default slot; unauthorized renders the optional `#fallback` slot or nothing. Denied content is removed from the DOM, not CSS-hidden.
+- Evaluation is reactive over `useState("bearer-auth-abilities")`: login, refresh, logout, and session replacement update rendering automatically. The components create no second authorization state and fetch nothing.
+- Malformed or missing ability state (`null`, wrong types, empty array) fails closed — identical to `auth.can()`.
+- Disabled authorization has no special UI mode: extraction never runs, state stays `null`, so `<Can>` renders fallback/nothing, exactly like `can()`.
+- Evaluation is synchronous and deterministic over SSR-transferred state, so server output matches hydration. SPA-only renders briefly show fallback until `fetchUser()` resolves; pair with `auth.ready` for loading UX.
+- `<Cannot>` is the exact negation of the same shared evaluator result used by `<Can>` (`evaluateAbilities`); there is no duplicate matching logic.
+
+**UI authorization controls rendering only. It never secures API requests. Your backend must authorize every request it receives.** Rendering a delete button does not authorize `DELETE /api/users/123`.
+
+Authorization directives (`v-can`) are intentionally not provided: they would duplicate `<Can>` and `can()` with weaker TypeScript ergonomics and more complex SSR behavior.
+
 ## Server State
 
 When enabled and a session has abilities, middleware sets `event.context.authorization` to `{ abilities, source: "session" }`. It remains separate from `event.context.auth`. When disabled, no authorization state is attached and no enforcement occurs.
@@ -81,4 +114,4 @@ The subpath keeps the helper out of client bundles. It does not replace Laravel 
 
 ## Future Scope
 
-Endpoint-source fetching, UI components/directives (`<Can>`/`<Cannot>`, Phase 4 candidates), role guards, policy engines, authorization databases, wildcards, and Laravel/Spatie-specific behavior remain out of scope.
+Endpoint-source fetching, authorization directives (`v-can` is rejected), role guards, policy engines, authorization databases, wildcards, and Laravel/Spatie-specific behavior remain out of scope.

@@ -93,3 +93,36 @@ The terminal repeatedly stopped spawning/completing processes mid-audit (same fa
 - `.markdown-collab/.mcp-server.json` is git-tracked and contains a localhost MCP token; predates this audit, excluded from the npm package by the `files` whitelist. Recommend untracking/gitignoring it separately.
 - `dev:prepare` stub-load warning is a tooling interplay (@nuxt/module-builder jiti validation), pre-existing at the Phase 3 baseline, harmless.
 - `dist/runtime/server/utils/sessions.d.ts` is ~440 kB (unbuild inlines redis client types); cosmetic bloat only.
+
+## Phase 4 — UI Authorization Primitives
+
+Status: **COMPLETE** (implemented against baseline HEAD `02c4edd`; validation battery below executed in this tree).
+
+Implemented:
+
+- Pure client-side evaluator `evaluateAbilities` (`src/runtime/utils/abilities.ts`) mirroring the frozen Phase 3 matcher semantics: exact equality, `all`/`any` (default `all`), empty requirement ⇒ unrestricted, malformed state/requirement fail-closed, never throws, never mutates inputs.
+- `<Can>` / `<Cannot>` auto-imported components (`src/runtime/components/`) sharing one prop-normalization composable over the evaluator; `<Cannot>` is the pure negation of the same result. Optional `#fallback` slot; denied content removed from the DOM; reactive to login/refresh/logout/session replacement; deterministic SSR.
+- Component registration via `addComponentsDir` (the only `module.ts` change).
+- Tests: evaluator matrix (21 tests) + component matrix including reactivity and SSR determinism (17 tests). Suite now **15 files / 163 tests, all passing**.
+- Test infrastructure (devDependencies only, documented decision): `@vue/test-utils`, `happy-dom`, `@vitejs/plugin-vue`; vitest config gains the Vue plugin and a `#app` alias stub for unit tests outside Nuxt; tsconfig includes `src/**/*.vue` so SFCs participate in typecheck.
+
+Not implemented (deferred/rejected):
+
+- `v-can` directive — rejected (DECISIONS.md #27).
+- Type-augmentation delivery fix (`@nuxt/schema` runtime-config + h3 event-context declarations reaching consumers) — deferred to separate maintenance work (DECISIONS.md #28).
+
+Executed validation results (this tree):
+
+| Check | Result |
+| --- | --- |
+| Baseline before changes | HEAD `02c4edd`, clean tree; 125/125 tests; typecheck exit 0; build exit 0 (513 kB); pack 61 files |
+| `npm test` | **15 files, 163/163 passing** |
+| `npm run typecheck` | **exit 0** (now includes `src/**/*.vue`) |
+| `npm run build` | **exit 0**, dist 518 kB |
+| Bundle boundary | `dist/module.mjs`: **0** occurrences of `requireAbility`; components emitted under `dist/runtime/components/` |
+| `npm pack --dry-run` | **exit 0**, 67 files (+6 dist artifacts); no test/stub/config artifacts in the tarball |
+
+Notes:
+
+- Frozen Phase 3 surfaces untouched: middleware, composable, `requireAbility`/server utils, session and SSR mechanics, route metadata semantics, redirect behavior. No matcher consolidation was performed.
+- `npm audit` reports pre-existing moderate advisories elsewhere in the dependency tree; not introduced by the Phase 4 devDependency additions and out of scope for this phase.

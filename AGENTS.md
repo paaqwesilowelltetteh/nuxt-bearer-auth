@@ -12,7 +12,7 @@ Nuxt Bearer Auth is a small, backend-agnostic Nuxt authentication package.
 - Route/server enforcement (Phase 3) is opt-in per route via `authorization` meta and gated on the module-level enabled flag exposed publicly as a serializable boolean.
 - Server helpers live behind the `nuxt-bearer-auth/server` subpath; never re-export them from the root entry.
 - Server authorization reads only `event.context.auth`; client-supplied ability data (state, headers, query, body) can never grant access.
-- Still excluded: UI components/directives (`<Can>`/`<Cannot>`, Phase 4 candidates), policy engines, RBAC persistence, wildcard matching, and automatic backend/API enforcement.
+- Still excluded: UI directives (`v-can`; `<Can>`/`<Cannot>` shipped in Phase 4 as advisory rendering primitives on a shared client evaluator), policy engines, RBAC persistence, wildcard matching, and automatic backend/API enforcement.
 
 ## Engineering
 

@@ -1,4 +1,5 @@
 import {
+  addComponentsDir,
   addImports,
   addPlugin,
   addRouteMiddleware,
@@ -228,6 +229,13 @@ const module = defineNuxtModule<BearerAuthModuleOptions>({
     ]);
 
     addPlugin(resolver.resolve("runtime/plugins/bearer-auth.server"));
+
+    // Phase 4 UI authorization primitives. Auto-imported as <Can>/<Cannot>
+    // (app-level components of the same name take precedence). Rendering is
+    // advisory only; these components never authorize API requests.
+    addComponentsDir({
+      path: resolver.resolve("runtime/components"),
+    });
 
     if (options.routes?.middleware !== false) {
       addRouteMiddleware({

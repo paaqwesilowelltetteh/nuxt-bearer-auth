@@ -20,6 +20,7 @@ Phase 3 layers enforcement on top of this state without changing it:
 
 - **Route middleware** (`bearer-auth.global.ts`) evaluates `to.meta.authorization` after authentication checks. Unauthenticated users keep the normal login redirect; authenticated users lacking abilities are redirected to `redirects.unauthorized`. Enforcement is gated on `public.bearerAuth.authorizationEnabled`, a serializable boolean derived from the module option, so disabled deployments treat metadata as inert.
 - **Server guard** (`requireAbility`, exported only via `nuxt-bearer-auth/server`) requires an authenticated session from `event.context.auth` (401 otherwise) and exact-matches required abilities with `all`/`any` semantics (403 on failure). It never reads client state or request input, sets `event.context.authorization` on success, and returns the session.
+- **UI primitives** (`<Can>` / `<Cannot>`, auto-imported) render their default or optional `#fallback` slot from one shared pure client evaluator over the existing ability state. Reactive to login/refresh/logout, fail closed on malformed state, and advisory only — they never authorize API requests.
 
 Matching is exact string equality everywhere; no wildcards or hierarchy. The Laravel backend remains authoritative for its own endpoints.
 
@@ -31,6 +32,7 @@ Matching is exact string equality everywhere; no wildcards or hierarchy. The Lar
 - Public runtime config: `public.bearerAuth.authorizationEnabled` (derived serializable boolean)
 - Client: `useState("bearer-auth-abilities")`
 - API: `auth.abilities`, `auth.can()`, `auth.cannot()`
+- Components: `<Can>` / `<Cannot>` via the shared pure `evaluateAbilities` utility (`src/runtime/utils/abilities.ts`)
 
 SSR hydrates user, status, and session abilities. Logout and auth failure clear client auth state. A response omitting authorization data does not erase existing abilities.
 
