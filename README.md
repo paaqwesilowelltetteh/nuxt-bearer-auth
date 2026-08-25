@@ -23,6 +23,7 @@ Reusable Nuxt authentication for APIs that issue bearer tokens. It is designed f
 - Global route middleware
 - Optional authorization with abilities normalization (disabled by default)
 - Route/page authorization via `definePageMeta` metadata (`all` / `any` modes)
+- Declarative `<Can>` / `<Cannot>` UI authorization components (advisory rendering only)
 - Server-side `requireAbility()` guard via the `nuxt-bearer-auth/server` export
 - `useBearerAuth()` composable
 - `useAuth()` alias for convenience
@@ -227,6 +228,34 @@ Abilities are persisted with the server session and hydrated during SSR. Login, 
 
 `auth.can()` and `auth.cannot()` are advisory UI helpers for showing or hiding controls. They do not secure APIs. A user who bypasses your UI can still call any endpoint directly, so your backend must authorize every request it receives.
 
+### UI Authorization Components
+
+`<Can>` and `<Cannot>` provide the same advisory checks declaratively. Both are auto-imported, evaluate the existing `auth.abilities` state reactively through one shared evaluator, and match route/server semantics exactly (exact strings, `mode` defaults to `"all"`, empty `abilities` means unrestricted, malformed props or state fail closed):
+
+```vue
+<template>
+  <!-- single ability -->
+  <Can ability="users.delete">
+    Delete
+  </Can>
+
+  <!-- every listed ability (default) / at least one -->
+  <Can :abilities="['users.view', 'users.edit']">Edit</Can>
+  <Can :abilities="['reports.view', 'reports.export']" mode="any">
+    Export
+  </Can>
+
+  <!-- inverse rendering -->
+  <Cannot ability="users.delete">
+    <template #fallback>Request access</template>
+  </Cannot>
+</template>
+```
+
+Unauthorized content is removed from the DOM; an optional `#fallback` slot renders instead. Disabled authorization behaves like `auth.can()` — ability state stays `null`, so `<Can>` renders fallback/nothing. SSR output matches hydration because evaluation is synchronous over the transferred state.
+
+As with all client checks: **UI authorization controls rendering only. It never secures API requests. Your backend must authorize every request it receives.**
+
 ### Route Authorization
 
 Pages opt in by declaring required abilities in `definePageMeta`. The global `bearer-auth` middleware enforces them when authorization is enabled:
@@ -292,7 +321,7 @@ Laravel backend               → authoritative for its own endpoints
 
 `requireAbility(event, "campaign.delete")` stops your Nuxt route from running, but if that route calls `DELETE /campaigns/123`, Laravel must still authorize `campaign.delete`. This package never claims to replace backend authorization.
 
-UI primitives such as `<Can>` / `<Cannot>` components are not part of this release.
+Declarative `<Can>` / `<Cannot>` components ship with the package — see [UI Authorization Components](#ui-authorization-components). Directives such as `v-can` are intentionally not provided.
 
 ## Redis Sessions
 
