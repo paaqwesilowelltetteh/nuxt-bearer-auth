@@ -1,6 +1,6 @@
 import { navigateTo, useNuxtApp, useRuntimeConfig, useState } from "#app";
 import { computed, watch } from "vue";
-import { $fetch } from "ofetch";
+import { $fetch, type FetchOptions } from "ofetch";
 
 import type {
   AuthApiResponse,
@@ -22,7 +22,7 @@ let serverCheckResolve: (() => void) | null = null;
 
 async function authFetch<T>(
   request: string,
-  options: Parameters<typeof $fetch>[1] = {},
+  options: FetchOptions<"json"> = {},
 ) {
   try {
     // nuxt-csurf v1.6+ provides $csrfFetch on the Nuxt app instance (via its own plugin).

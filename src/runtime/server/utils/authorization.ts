@@ -1,6 +1,8 @@
 import { getBearerAuthConfig } from "./config";
 import { readFirstPath } from "./paths";
 import type { AuthorizationResponsePaths } from "../../../types";
+import { createError, type H3Event } from "h3";
+import { requireBearerAuthSession } from "./sessions";
 
 const DEFAULT_AUTHORIZATION_CONFIG = {
   enabled: false,
@@ -112,4 +114,44 @@ export function extractAuthorizationFromResponse(
     // If normalization fails, return null rather than throwing
     return null;
   }
+}
+
+export function hasRequiredAbilities(
+  abilities: string[] | null | undefined,
+  required: string[],
+  mode: "all" | "any" = "all",
+) {
+  if (required.length === 0) return true;
+  // Fail closed: only a well-formed non-empty ability array can authorize.
+  // Malformed session data (corrupted Redis payloads, wrong types) must never
+  // grant access or crash into a 500 — it is treated as "no abilities".
+  if (!Array.isArray(abilities) || abilities.length === 0) return false;
+
+  return mode === "any"
+    ? required.some((ability) => abilities.includes(ability))
+    : required.every((ability) => abilities.includes(ability));
+}
+
+export function requireAbility(
+  event: H3Event,
+  required: string | string[],
+  mode: "all" | "any" = "all",
+) {
+  const session = requireBearerAuthSession(event);
+  const abilities = session.abilities;
+  const requiredAbilities = Array.isArray(required) ? required : [required];
+
+  if (!hasRequiredAbilities(abilities, requiredAbilities, mode)) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: "Authorization required",
+    });
+  }
+
+  event.context.authorization = {
+    abilities: abilities || [],
+    source: "session",
+  };
+
+  return session;
 }

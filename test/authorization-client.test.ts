@@ -100,4 +100,29 @@ describe("useBearerAuth client authorization synchronization", () => {
 
     expect(auth.can("campaign.view")).toBe(true);
   });
+
+  it("clears abilities on logout so stale authorization state cannot persist", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        success: true,
+        user: { id: "u1" },
+        abilities: ["campaign.delete"],
+      })
+      // Logout endpoint response.
+      .mockResolvedValueOnce({});
+    const auth = useBearerAuth();
+
+    await auth.login(
+      { identifier: "user@example.com", password: "secret" },
+      null,
+    );
+    expect(auth.can("campaign.delete")).toBe(true);
+
+    await auth.logout();
+    await nextTick();
+
+    expect(auth.can("campaign.delete")).toBe(false);
+    expect(auth.cannot("campaign.delete")).toBe(true);
+    expect(auth.abilities.value).toBeNull();
+  });
 });

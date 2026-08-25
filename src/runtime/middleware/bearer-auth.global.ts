@@ -1,5 +1,20 @@
 import { defineNuxtRouteMiddleware, navigateTo, useRuntimeConfig } from "#app";
 import { useBearerAuth } from "../composables/useBearerAuth";
+import type { AuthorizationRouteRequirement } from "../../types";
+
+function hasRequiredAbilities(
+  abilities: string[] | null | undefined,
+  requirement: AuthorizationRouteRequirement,
+) {
+  if (requirement.abilities.length === 0) return true;
+  // Fail closed: malformed or missing client-side authorization state must
+  // never grant access (mirrors the server-side helper).
+  if (!Array.isArray(abilities) || abilities.length === 0) return false;
+
+  return requirement.mode === "any"
+    ? requirement.abilities.some((ability) => abilities.includes(ability))
+    : requirement.abilities.every((ability) => abilities.includes(ability));
+}
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const config = useRuntimeConfig();
@@ -7,11 +22,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
     redirects: {
       login: string;
       authenticated: string;
+      unauthorized: string;
     };
     routes: {
       public: string[];
       authPages: string[];
     };
+    authorizationEnabled?: boolean;
   };
 
   const auth = useBearerAuth();
@@ -44,5 +61,22 @@ export default defineNuxtRouteMiddleware(async (to) => {
       path: publicAuth.redirects.login,
       query: { redirect: to.fullPath },
     });
+  }
+
+  const requirement = to.meta.authorization as
+    | AuthorizationRouteRequirement
+    | undefined;
+
+  // Authorization enforcement only applies when the authorization subsystem is
+  // enabled and the route opted in via metadata. Authentication failures are
+  // handled above; this block only distinguishes authorized vs unauthorized
+  // for already-authenticated users.
+  if (
+    publicAuth.authorizationEnabled &&
+    auth.isAuthenticated.value &&
+    requirement?.abilities &&
+    !hasRequiredAbilities(auth.abilities.value, requirement)
+  ) {
+    return navigateTo(publicAuth.redirects.unauthorized);
   }
 });

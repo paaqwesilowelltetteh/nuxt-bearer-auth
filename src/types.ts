@@ -71,6 +71,13 @@ export type Ability = string;
 
 export type AuthorizationSource = "session" | "endpoint";
 
+export type AuthorizationMatchMode = "all" | "any";
+
+export interface AuthorizationRouteRequirement {
+  abilities: string[];
+  mode?: AuthorizationMatchMode;
+}
+
 export interface AuthorizationResponsePaths {
   roles?: string[];
   permissions?: string[];
@@ -83,6 +90,34 @@ export interface BearerAuthAuthorizationConfig {
   endpoint?: string;
   responsePaths: AuthorizationResponsePaths;
   rolePrefix: string;
+}
+
+/**
+ * Shape of the private (server-side) `runtimeConfig.bearerAuth` namespace
+ * populated by the module. Never place functions or secrets beyond what the
+ * server requires here; runtime configuration must stay serializable.
+ */
+export interface BearerAuthPrivateRuntimeConfig {
+  apiBaseUrl: string;
+  redisUrl: string;
+  sessionSecret: string;
+  appEnv: string;
+  endpoints: BearerAuthEndpointOptions;
+  responsePaths: BearerAuthResponsePaths;
+  sessionCookie: BearerAuthCookieOptions;
+  authorization: BearerAuthAuthorizationConfig;
+  verificationRequiredActions: string[];
+  twoFactorRequiredActions: string[];
+}
+
+/**
+ * Shape of the public `runtimeConfig.public.bearerAuth` namespace.
+ * Only serializable, browser-safe values are allowed here.
+ */
+export interface BearerAuthPublicRuntimeConfig {
+  redirects: Required<BearerAuthRedirectOptions>;
+  routes: Required<BearerAuthRouteOptions>;
+  authorizationEnabled: boolean;
 }
 
 export interface BearerAuthModuleOptions {

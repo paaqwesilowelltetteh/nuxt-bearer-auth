@@ -9,7 +9,10 @@ Nuxt Bearer Auth is a small, backend-agnostic Nuxt authentication package.
 - Authorization is optional, server-derived, and disabled by default.
 - Authorization state is normalized to `string[]` abilities.
 - Client authorization state is advisory; the backend remains authoritative.
-- Phase 2 excludes route authorization, UI directives/components, server guards, policy engines, and authorization persistence.
+- Route/server enforcement (Phase 3) is opt-in per route via `authorization` meta and gated on the module-level enabled flag exposed publicly as a serializable boolean.
+- Server helpers live behind the `nuxt-bearer-auth/server` subpath; never re-export them from the root entry.
+- Server authorization reads only `event.context.auth`; client-supplied ability data (state, headers, query, body) can never grant access.
+- Still excluded: UI components/directives (`<Can>`/`<Cannot>`, Phase 4 candidates), policy engines, RBAC persistence, wildcard matching, and automatic backend/API enforcement.
 
 ## Engineering
 
@@ -25,7 +28,7 @@ Nuxt Bearer Auth is a small, backend-agnostic Nuxt authentication package.
 
 ## Validation
 
-Run `npm test`, `npm run build`, and `npm run typecheck` after implementation changes. Redis-backed tests require a reachable Redis instance. Report environment limitations and exact counts; never claim completion from a partial run.
+Run `npm run dev:prepare` before `npm run typecheck` (fresh clones have no `.nuxt/` types; tsconfig extends them). Then run `npm test`, `npm run build`, and `npm run typecheck` after implementation changes. Redis-backed tests require a reachable Redis instance. Report environment limitations and exact counts; never claim completion from a partial run.
 
 ## Git Safety
 

@@ -16,12 +16,19 @@ When enabled, applicable authentication responses produce normalized abilities. 
 event.context.authorization = { abilities, source: "session" };
 ```
 
-This state is informational in Phase 2. No route, page, component, or API authorization is enforced.
+Phase 3 layers enforcement on top of this state without changing it:
+
+- **Route middleware** (`bearer-auth.global.ts`) evaluates `to.meta.authorization` after authentication checks. Unauthenticated users keep the normal login redirect; authenticated users lacking abilities are redirected to `redirects.unauthorized`. Enforcement is gated on `public.bearerAuth.authorizationEnabled`, a serializable boolean derived from the module option, so disabled deployments treat metadata as inert.
+- **Server guard** (`requireAbility`, exported only via `nuxt-bearer-auth/server`) requires an authenticated session from `event.context.auth` (401 otherwise) and exact-matches required abilities with `all`/`any` semantics (403 on failure). It never reads client state or request input, sets `event.context.authorization` on success, and returns the session.
+
+Matching is exact string equality everywhere; no wildcards or hierarchy. The Laravel backend remains authoritative for its own endpoints.
 
 ## State
 
 - Session: `BearerAuthSession.abilities?: string[] | null`
 - Request: `event.context.authorization`
+- Route: `to.meta.authorization` (`AuthorizationRouteRequirement`)
+- Public runtime config: `public.bearerAuth.authorizationEnabled` (derived serializable boolean)
 - Client: `useState("bearer-auth-abilities")`
 - API: `auth.abilities`, `auth.can()`, `auth.cannot()`
 
@@ -58,4 +65,4 @@ Endpoint-source authorization and a local resolver are not implemented. A future
 
 ## Website
 
-No website repository is present in this workspace. Website synchronization remains pending.
+The website repository (`../nuxt-bearer-auth-website`) is available and synchronized through Phase 3: an Authorization guide covers the three-layer model, client checks, route metadata, `requireAbility()`, and 401/403 semantics.

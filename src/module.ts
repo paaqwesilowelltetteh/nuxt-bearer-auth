@@ -9,7 +9,11 @@ import {
   installModule,
 } from "@nuxt/kit";
 import { defu } from "defu";
-import type { BearerAuthModuleOptions } from "./types";
+import type {
+  BearerAuthModuleOptions,
+  BearerAuthPrivateRuntimeConfig,
+  BearerAuthPublicRuntimeConfig,
+} from "./types";
 
 const defaultOptions = {
   apiBaseUrl: "",
@@ -121,7 +125,10 @@ const module = defineNuxtModule<BearerAuthModuleOptions>({
     const resolver = createResolver(import.meta.url);
     const options = defu(moduleOptions, defaultOptions);
 
-    nuxt.options.runtimeConfig.bearerAuth = defu(
+    nuxt.options.runtimeConfig.bearerAuth = defu<
+      BearerAuthPrivateRuntimeConfig,
+      [BearerAuthPrivateRuntimeConfig]
+    >(
       nuxt.options.runtimeConfig.bearerAuth,
       {
         apiBaseUrl: options.apiBaseUrl,
@@ -137,11 +144,17 @@ const module = defineNuxtModule<BearerAuthModuleOptions>({
       },
     );
 
-    nuxt.options.runtimeConfig.public.bearerAuth = defu(
+    nuxt.options.runtimeConfig.public.bearerAuth = defu<
+      BearerAuthPublicRuntimeConfig,
+      [BearerAuthPublicRuntimeConfig]
+    >(
       nuxt.options.runtimeConfig.public.bearerAuth,
       {
         redirects: options.redirects,
         routes: options.routes,
+        // Serializable derived flag so the global middleware knows whether the
+        // authorization subsystem is active. Never put functions here.
+        authorizationEnabled: options.authorization?.enabled ?? false,
       },
     );
 
