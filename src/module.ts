@@ -9,7 +9,11 @@ import {
   installModule,
 } from "@nuxt/kit";
 import { defu } from "defu";
-import type { BearerAuthModuleOptions } from "./types";
+import type {
+  BearerAuthModuleOptions,
+  BearerAuthPrivateRuntimeConfig,
+  BearerAuthPublicRuntimeConfig,
+} from "./types";
 
 const defaultOptions = {
   apiBaseUrl: "",
@@ -93,6 +97,17 @@ const defaultOptions = {
       sameSite: "strict",
     },
   },
+  authorization: {
+    enabled: false,
+    source: "session",
+    endpoint: "",
+    responsePaths: {
+      roles: ["roles", "data.roles"],
+      permissions: ["permissions", "data.permissions"],
+      abilities: ["abilities", "data.abilities"],
+    },
+    rolePrefix: "role:",
+  },
   verificationRequiredActions: ["verify_account", "verification_required"],
   twoFactorRequiredActions: ["two_factor_required", "2fa_required"],
 } satisfies Required<BearerAuthModuleOptions>;
@@ -110,7 +125,10 @@ const module = defineNuxtModule<BearerAuthModuleOptions>({
     const resolver = createResolver(import.meta.url);
     const options = defu(moduleOptions, defaultOptions);
 
-    nuxt.options.runtimeConfig.bearerAuth = defu(
+    nuxt.options.runtimeConfig.bearerAuth = defu<
+      BearerAuthPrivateRuntimeConfig,
+      [BearerAuthPrivateRuntimeConfig]
+    >(
       nuxt.options.runtimeConfig.bearerAuth,
       {
         apiBaseUrl: options.apiBaseUrl,
@@ -120,16 +138,23 @@ const module = defineNuxtModule<BearerAuthModuleOptions>({
         endpoints: options.endpoints,
         responsePaths: options.responsePaths,
         sessionCookie: options.sessionCookie,
+        authorization: options.authorization,
         verificationRequiredActions: options.verificationRequiredActions,
         twoFactorRequiredActions: options.twoFactorRequiredActions,
       },
     );
 
-    nuxt.options.runtimeConfig.public.bearerAuth = defu(
+    nuxt.options.runtimeConfig.public.bearerAuth = defu<
+      BearerAuthPublicRuntimeConfig,
+      [BearerAuthPublicRuntimeConfig]
+    >(
       nuxt.options.runtimeConfig.public.bearerAuth,
       {
         redirects: options.redirects,
         routes: options.routes,
+        // Serializable derived flag so the global middleware knows whether the
+        // authorization subsystem is active. Never put functions here.
+        authorizationEnabled: options.authorization?.enabled ?? false,
       },
     );
 
@@ -155,14 +180,38 @@ const module = defineNuxtModule<BearerAuthModuleOptions>({
       const prefix = options.routes?.localApiPrefix || "/api/auth";
       nuxt.options.routeRules = {
         ...nuxt.options.routeRules,
-        [`${prefix}/login`]: { csurf: false, ...nuxt.options.routeRules?.[`${prefix}/login`] },
-        [`${prefix}/register`]: { csurf: false, ...nuxt.options.routeRules?.[`${prefix}/register`] },
-        [`${prefix}/social-login`]: { csurf: false, ...nuxt.options.routeRules?.[`${prefix}/social-login`] },
-        [`${prefix}/forgot-password`]: { csurf: false, ...nuxt.options.routeRules?.[`${prefix}/forgot-password`] },
-        [`${prefix}/reset-password`]: { csurf: false, ...nuxt.options.routeRules?.[`${prefix}/reset-password`] },
-        [`${prefix}/otp-verification`]: { csurf: false, ...nuxt.options.routeRules?.[`${prefix}/otp-verification`] },
-        [`${prefix}/resend-otp/**`]: { csurf: false, ...nuxt.options.routeRules?.[`${prefix}/resend-otp/**`] },
-        "/api/_csrf": { csurf: false, ...nuxt.options.routeRules?.["/api/_csrf"] },
+        [`${prefix}/login`]: {
+          csurf: false,
+          ...nuxt.options.routeRules?.[`${prefix}/login`],
+        },
+        [`${prefix}/register`]: {
+          csurf: false,
+          ...nuxt.options.routeRules?.[`${prefix}/register`],
+        },
+        [`${prefix}/social-login`]: {
+          csurf: false,
+          ...nuxt.options.routeRules?.[`${prefix}/social-login`],
+        },
+        [`${prefix}/forgot-password`]: {
+          csurf: false,
+          ...nuxt.options.routeRules?.[`${prefix}/forgot-password`],
+        },
+        [`${prefix}/reset-password`]: {
+          csurf: false,
+          ...nuxt.options.routeRules?.[`${prefix}/reset-password`],
+        },
+        [`${prefix}/otp-verification`]: {
+          csurf: false,
+          ...nuxt.options.routeRules?.[`${prefix}/otp-verification`],
+        },
+        [`${prefix}/resend-otp/**`]: {
+          csurf: false,
+          ...nuxt.options.routeRules?.[`${prefix}/resend-otp/**`],
+        },
+        "/api/_csrf": {
+          csurf: false,
+          ...nuxt.options.routeRules?.["/api/_csrf"],
+        },
       };
     }
 
@@ -233,12 +282,16 @@ const module = defineNuxtModule<BearerAuthModuleOptions>({
     addServerHandler({
       route: `${prefix}/otp-verification`,
       method: "post",
-      handler: resolver.resolve("runtime/server/api/auth/otp-verification.post"),
+      handler: resolver.resolve(
+        "runtime/server/api/auth/otp-verification.post",
+      ),
     });
     addServerHandler({
       route: `${prefix}/resend-otp/:identifier`,
       method: "post",
-      handler: resolver.resolve("runtime/server/api/auth/resend-otp/[identifier].post"),
+      handler: resolver.resolve(
+        "runtime/server/api/auth/resend-otp/[identifier].post",
+      ),
     });
     addServerHandler({
       route: `${prefix}/register`,
@@ -261,5 +314,3 @@ const module = defineNuxtModule<BearerAuthModuleOptions>({
 export type * from "./types";
 export type * from "./runtime/types/auth";
 export default module;
-
-

@@ -7,6 +7,7 @@ vi.mock("../src/runtime/server/utils/sessions", () => ({
 
 const mockAuth = {
   setUser: vi.fn(),
+  setAbilities: vi.fn(),
   clearAuthState: vi.fn(),
   setAuthReady: vi.fn(),
   setServerChecked: vi.fn(),
@@ -28,6 +29,7 @@ describe("SSR Server Plugin (bearer-auth.server.ts)", () => {
       userId: "u123",
       token: "secret",
       profile: { id: "u123", name: "Alice", email: "alice@example.com" },
+      abilities: ["campaign.view", "campaign.create"],
     });
 
     const nuxtApp = {
@@ -44,9 +46,14 @@ describe("SSR Server Plugin (bearer-auth.server.ts)", () => {
       name: "Alice",
       email: "alice@example.com",
     });
+    expect(mockAuth.setAbilities).toHaveBeenCalledWith([
+      "campaign.view",
+      "campaign.create",
+    ]);
     expect(nuxtApp.payload.bearerAuth).toEqual({
       user: { id: "u123", name: "Alice", email: "alice@example.com" },
       status: "authenticated",
+      abilities: ["campaign.view", "campaign.create"],
     });
     expect(mockAuth.setAuthReady).toHaveBeenCalledWith(true);
     expect(mockAuth.setServerChecked).toHaveBeenCalled();
@@ -65,16 +72,20 @@ describe("SSR Server Plugin (bearer-auth.server.ts)", () => {
     await (bearerAuthServerPlugin as any)(nuxtApp);
 
     expect(mockAuth.setUser).toHaveBeenCalledWith(null);
+    expect(mockAuth.setAbilities).toHaveBeenCalledWith(null);
     expect(nuxtApp.payload.bearerAuth).toEqual({
       user: null,
       status: "unauthenticated",
+      abilities: null,
     });
     expect(mockAuth.setAuthReady).toHaveBeenCalledWith(true);
     expect(mockAuth.setServerChecked).toHaveBeenCalled();
   });
 
   it("handles Redis error during SSR hydration safely without hanging", async () => {
-    mockGetBearerAuthSession.mockRejectedValueOnce(new Error("Redis connection dropped"));
+    mockGetBearerAuthSession.mockRejectedValueOnce(
+      new Error("Redis connection dropped"),
+    );
 
     const nuxtApp = {
       ssrContext: {
@@ -89,6 +100,7 @@ describe("SSR Server Plugin (bearer-auth.server.ts)", () => {
     expect(nuxtApp.payload.bearerAuth).toEqual({
       user: null,
       status: "unauthenticated",
+      abilities: null,
     });
     expect(mockAuth.setAuthReady).toHaveBeenCalledWith(true);
     expect(mockAuth.setServerChecked).toHaveBeenCalled();

@@ -2,6 +2,7 @@ import type {
   BearerAuthCookieOptions,
   BearerAuthEndpointOptions,
   BearerAuthResponsePaths,
+  BearerAuthAuthorizationConfig,
 } from "../../../types";
 import { createError } from "h3";
 import { useRuntimeConfig } from "#imports";
@@ -13,6 +14,7 @@ export interface RuntimeBearerAuthConfig {
   endpoints: BearerAuthEndpointOptions;
   responsePaths: BearerAuthResponsePaths;
   sessionCookie: BearerAuthCookieOptions;
+  authorization: BearerAuthAuthorizationConfig;
   verificationRequiredActions: string[];
   twoFactorRequiredActions: string[];
 }
@@ -50,5 +52,7 @@ export function getSessionCookieName() {
 
 export function isProductionRuntime() {
   const config = getBearerAuthConfig();
-  return config.appEnv === "production" || process.env.NODE_ENV === "production";
+  return (
+    config.appEnv === "production" || process.env.NODE_ENV === "production"
+  );
 }
