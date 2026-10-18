@@ -41,7 +41,7 @@
   ],
   "scripts": {
     "build": "nuxt-module-build build",
-    "dev:prepare": "nuxt-module-build --stub && nuxi prepare",
+    "dev:prepare": "nuxt-module-build build && nuxi prepare",
     "prepack": "nuxt-module-build build",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run"
@@ -67,6 +67,15 @@
     "typescript": "^5.5.0",
     "vitest": "^4.1.11",
     "vue-tsc": "^2.0.0"
+  },
+  "overrides": {
+    "mkdist": {
+      "esbuild": "^0.25.2",
+      "postcss-nested": "^7.0.2"
+    },
+    "unbuild": {
+      "esbuild": "^0.25.2"
+    }
   },
   "packageManager": "npm@10.0.0"
 }

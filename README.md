@@ -34,6 +34,10 @@ Reusable Nuxt authentication for APIs that issue bearer tokens. It is designed f
 npm install nuxt-bearer-auth redis nuxt-csurf
 ```
 
+### Nuxt compatibility
+
+The package declares compatibility with Nuxt `^3.12.0 || ^4.0.0`. The [automated consumer matrix](https://github.com/paaqwesilowelltetteh/nuxt-bearer-auth/actions/workflows/nuxt-compatibility.yml) targets exact releases Nuxt 3.12.0, 3.21.11, and 4.6.1 on Node.js 24.19.0 and npm 10.0.0. Nuxt 3.21.11 and 4.6.0 have been manually verified; Nuxt 3.12.0 and 4.6.1 await their CI results. These representative checks do not test every version in the declared peer range. Nuxt 3 reached end of life on July 31, 2026; use Nuxt 4 for new applications where possible.
+
 ```ts
 export default defineNuxtConfig({
   modules: ["nuxt-bearer-auth"],
@@ -377,6 +381,22 @@ export default defineNuxtConfig({
   },
 });
 ```
+
+### Strict API Prefix Matching
+
+For backward compatibility, API route prefixes use the existing `startsWith` behavior by default. If you want public and protected API prefixes to match only the exact path or a path segment below the configured prefix, opt in:
+
+```ts
+export default defineNuxtConfig({
+  bearerAuth: {
+    routes: {
+      strictPrefixMatching: true,
+    },
+  },
+});
+```
+
+With strict matching enabled, `/api/auth/login` matches, `/api/auth/login/foo` matches, but `/api/auth/login-evil` does not.
 
 Disable the global client middleware:
 
