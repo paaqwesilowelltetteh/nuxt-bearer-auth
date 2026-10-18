@@ -40,9 +40,9 @@
     "README.md"
   ],
   "scripts": {
-    "build": "nuxt-module-build build",
-    "dev:prepare": "nuxt-module-build build && nuxi prepare",
-    "prepack": "nuxt-module-build build",
+    "build": "nuxi prepare && nuxt-module-build build",
+    "dev:prepare": "npm run build",
+    "prepack": "npm run build",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run"
   },
