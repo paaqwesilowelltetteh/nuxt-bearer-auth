@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createEvent } from "h3";
 import { IncomingMessage, ServerResponse } from "node:http";
 import { Socket } from "node:net";
@@ -20,6 +20,7 @@ let mockPublicConfig = {
       "/_ipx",
       "/favicon.ico",
     ],
+    strictPrefixMatching: false,
   },
 };
 
@@ -70,11 +71,49 @@ function createMockH3Event(
 }
 
 describe("Nitro server middleware/auth", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAuthorizationEnabled = false;
+    mockPublicConfig.routes.strictPrefixMatching = false;
+  });
+
   it("allows publicApiPrefixes without checking session", async () => {
     const event = createMockH3Event("/api/auth/login", "POST");
     await authServerMiddleware(event);
     expect(mockGetBearerAuthSession).not.toHaveBeenCalled();
     expect(event.context.auth).toBeUndefined();
+  });
+
+  it("allows exact public API paths with strict prefix matching", async () => {
+    mockPublicConfig.routes.strictPrefixMatching = true;
+
+    const event = createMockH3Event("/api/auth/login", "POST", null);
+
+    await authServerMiddleware(event);
+
+    expect(mockGetBearerAuthSession).not.toHaveBeenCalled();
+  });
+
+  it("allows descendants of public API paths with strict prefix matching", async () => {
+    mockPublicConfig.routes.strictPrefixMatching = true;
+
+    const event = createMockH3Event("/api/auth/login/provider", "POST", null);
+
+    await authServerMiddleware(event);
+
+    expect(mockGetBearerAuthSession).not.toHaveBeenCalled();
+  });
+
+  it("requires authentication for similarly prefixed unrelated routes in strict mode", async () => {
+    mockPublicConfig.routes.strictPrefixMatching = true;
+
+    const event = createMockH3Event("/api/auth/login-evil", "POST", null);
+
+    await expect(authServerMiddleware(event)).rejects.toThrow(
+      "Authentication required",
+    );
+
+    expect(mockGetBearerAuthSession).toHaveBeenCalledWith(event);
   });
 
   it("allows safe non-protected methods (GET, HEAD, OPTIONS) without authentication", async () => {

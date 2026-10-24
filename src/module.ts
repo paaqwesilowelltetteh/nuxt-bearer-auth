@@ -75,6 +75,8 @@ const defaultOptions = {
       "/favicon.ico",
     ],
     middleware: true,
+    // Preserve existing prefix semantics by default; opt in to exact path-boundary matching.
+    strictPrefixMatching: false,
   },
   sessionCookie: {
     name: "nuxt_bearer_auth_session",

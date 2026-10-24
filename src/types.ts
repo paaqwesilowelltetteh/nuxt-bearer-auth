@@ -38,6 +38,7 @@ export interface BearerAuthRouteOptions {
   protectedApiPrefixes: string[];
   publicApiPrefixes: string[];
   middleware: boolean;
+  strictPrefixMatching?: boolean;
 }
 
 export interface BearerAuthCookieOptions {

@@ -1,6 +1,6 @@
 {
   "name": "nuxt-bearer-auth",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "description": "Reusable Nuxt authentication module for bearer-token APIs with Redis sessions and CSRF protection.",
   "type": "module",
   "license": "MIT",
@@ -40,9 +40,9 @@
     "README.md"
   ],
   "scripts": {
-    "build": "nuxt-module-build build",
-    "dev:prepare": "nuxt-module-build --stub && nuxi prepare",
-    "prepack": "nuxt-module-build build",
+    "build": "nuxi prepare && nuxt-module-build build",
+    "dev:prepare": "npm run build",
+    "prepack": "npm run build",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run"
   },
@@ -67,6 +67,15 @@
     "typescript": "^5.5.0",
     "vitest": "^4.1.11",
     "vue-tsc": "^2.0.0"
+  },
+  "overrides": {
+    "mkdist": {
+      "esbuild": "^0.25.2",
+      "postcss-nested": "^7.0.2"
+    },
+    "unbuild": {
+      "esbuild": "^0.25.2"
+    }
   },
   "packageManager": "npm@10.0.0"
 }

@@ -152,7 +152,11 @@ export async function updateBearerAuthSession<User extends BearerAuthUser>(
     lastActivity: new Date().toISOString(),
   };
 
-  await redis.setEx(key, duration, JSON.stringify(session));
+  const multi = redis.multi();
+  multi.setEx(key, duration, JSON.stringify(session));
+  multi.sAdd(`${USER_SESSIONS_PREFIX}${existing.userId}`, sessionId);
+  multi.expire(`${USER_SESSIONS_PREFIX}${existing.userId}`, duration);
+  await multi.exec();
   event.context.auth = session;
 
   return true;
@@ -190,16 +194,33 @@ async function updateSessionActivity(
 ) {
   const redis = await ensureBearerAuthRedisConnection();
   const duration = getSessionDuration();
-  const updatedSession: BearerAuthSession = {
-    ...session,
-    expiresAt: Date.now() + duration * 1000,
-    lastActivity: new Date().toISOString(),
-  };
+  const key = `${SESSION_PREFIX}${sessionId}`;
+  const userSessionsKey = `${USER_SESSIONS_PREFIX}${session.userId}`;
+  const expiresAt = Date.now() + duration * 1000;
+  const lastActivity = new Date().toISOString();
 
-  await redis.setEx(
-    `${SESSION_PREFIX}${sessionId}`,
-    duration,
-    JSON.stringify(updatedSession),
+  // Refresh only activity metadata atomically. Rewriting the stale session
+  // snapshot here could race with a concurrent refresh/login and overwrite a
+  // newer access token, refresh token, profile, or ability set. The Lua script
+  // reads the current Redis value at execution time and preserves every field
+  // except the two activity fields. It also repairs the user-session index
+  // when an active session outlives the index TTL.
+  await redis.eval(
+    `
+      local raw = redis.call('GET', KEYS[1])
+      if not raw then return 0 end
+      local current = cjson.decode(raw)
+      current.expiresAt = tonumber(ARGV[1])
+      current.lastActivity = ARGV[2]
+      redis.call('SETEX', KEYS[1], tonumber(ARGV[3]), cjson.encode(current))
+      redis.call('SADD', KEYS[2], ARGV[4])
+      redis.call('EXPIRE', KEYS[2], tonumber(ARGV[3]))
+      return 1
+    `,
+    {
+      keys: [key, userSessionsKey],
+      arguments: [String(expiresAt), lastActivity, String(duration), sessionId],
+    },
   );
 }
 

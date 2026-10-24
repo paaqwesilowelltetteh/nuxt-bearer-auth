@@ -218,6 +218,18 @@ describe("sessions management with Redis", () => {
     expect(data.token).toBe("new_rotated_token");
     expect(data.profile.name).toBe("Updated Name");
     expect(data.refreshToken).toBe("initial_refresh");
+
+    // Session updates also repair the user-session index if it expired.
+    await redis.del("user_sessions:user_update");
+    const repairEvent = createMockEvent({
+      nuxt_bearer_auth_session_dev: sessionId,
+    }).event;
+    await updateBearerAuthSession(repairEvent, {
+      profile: { id: "user_update", name: "Repaired" },
+    });
+    expect(await redis.sMembers("user_sessions:user_update")).toContain(
+      sessionId,
+    );
   });
 
   it("destroys a single session completely", async () => {
@@ -252,6 +264,32 @@ describe("sessions management with Redis", () => {
     expect(await redis.get(`session:${s1}`)).toBeNull();
     expect(await redis.get(`session:${s2}`)).toBeNull();
     expect(await redis.sMembers("user_sessions:user_multi")).toEqual([]);
+  });
+
+  it("repairs an expired user-session index when refreshing activity", async () => {
+    const { event: createEvent } = createMockEvent();
+    const sessionId = await createBearerAuthSession(createEvent, {
+      userId: "user_index_repair",
+      token: "current_token",
+    });
+
+    await redis.del("user_sessions:user_index_repair");
+    expect(await redis.sMembers("user_sessions:user_index_repair")).toEqual([]);
+
+    const { event: getEvent } = createMockEvent({
+      nuxt_bearer_auth_session_dev: sessionId,
+    });
+
+    const session = await getBearerAuthSession(getEvent);
+    expect(session?.token).toBe("current_token");
+
+    // Activity renewal is intentionally asynchronous. Give the Redis command
+    // a chance to complete before asserting the repaired index.
+    await new Promise((resolve) => setTimeout(resolve, 25));
+
+    expect(await redis.sMembers("user_sessions:user_index_repair")).toContain(
+      sessionId,
+    );
   });
 
   it("lists active public sessions for a user", async () => {
