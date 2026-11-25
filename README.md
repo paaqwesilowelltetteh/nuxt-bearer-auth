@@ -521,4 +521,6 @@ Liveness validation reads the cookie-backed Redis record directly. It does not u
 
 The endpoint is not a session-enumeration API: it accepts only the caller's opaque HTTP-only cookie and reveals no session identifiers or account details. It is a GET request and does not bypass CSRF protections for state-changing operations. Do not use client-side validity as an authorization boundary; protected server routes and the upstream API remain authoritative.
 
+The global route middleware waits for an in-progress authentication state transition to leave `loading` before making a redirect decision. A temporary loading state is not treated as an anonymous session.
+
 During SSR the liveness composable is a no-op. The initial user snapshot can be hydrated as before; a client-side probe can then confirm the underlying session. A network, timeout, Redis, or other non-401 error produces `unavailable` and does not clear authentication state. Only a confirmed unauthenticated response produces `invalid`.
