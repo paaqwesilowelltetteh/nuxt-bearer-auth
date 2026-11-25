@@ -111,6 +111,18 @@ const defaultOptions = {
     },
     rolePrefix: "role:",
   },
+  sessionLiveness: {
+    enabled: false,
+    intervalMs: 5 * 60 * 1000,
+    minIntervalMs: 30 * 1000,
+    validateOnMount: true,
+    validateOnFocus: true,
+    validateOnVisibilityChange: true,
+    validateOnNavigation: false,
+    onlyWhenVisible: true,
+    crossTab: true,
+    channelName: "nuxt-bearer-auth",
+  },
   verificationRequiredActions: ["verify_account", "verification_required"],
   twoFactorRequiredActions: ["two_factor_required", "2fa_required"],
 } satisfies Required<BearerAuthModuleOptions>;
@@ -158,6 +170,17 @@ const module = defineNuxtModule<BearerAuthModuleOptions>({
         // Serializable derived flag so the global middleware knows whether the
         // authorization subsystem is active. Never put functions here.
         authorizationEnabled: options.authorization?.enabled ?? false,
+        sessionLiveness: options.sessionLiveness,
+        routes: {
+          ...options.routes,
+          // The validation endpoint must bypass the ordinary authenticated
+          // middleware because it performs its own non-renewing cookie check.
+          publicApiPrefixes: [
+            ...(options.routes?.publicApiPrefixes ??
+              defaultOptions.routes.publicApiPrefixes),
+            `${options.routes?.localApiPrefix || "/api/auth"}/session`,
+          ],
+        },
       },
     );
 
@@ -228,6 +251,10 @@ const module = defineNuxtModule<BearerAuthModuleOptions>({
         as: "useAuth",
         from: resolver.resolve("runtime/composables/useBearerAuth"),
       },
+      {
+        name: "useBearerAuthSession",
+        from: resolver.resolve("runtime/composables/useBearerAuthSession"),
+      },
     ]);
 
     addPlugin(resolver.resolve("runtime/plugins/bearer-auth.server"));
@@ -273,6 +300,11 @@ const module = defineNuxtModule<BearerAuthModuleOptions>({
       route: `${prefix}/me`,
       method: "get",
       handler: resolver.resolve("runtime/server/api/auth/me.get"),
+    });
+    addServerHandler({
+      route: `${prefix}/session`,
+      method: "get",
+      handler: resolver.resolve("runtime/server/api/auth/session.get"),
     });
     addServerHandler({
       route: `${prefix}/refresh`,

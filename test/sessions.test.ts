@@ -35,6 +35,7 @@ import {
   ensureBearerAuthRedisConnection,
   getBearerAuthRedisClient,
   getBearerAuthSession,
+  validateBearerAuthSession,
   getUserBearerAuthSessions,
   requireBearerAuthSession,
   updateBearerAuthSession,
@@ -148,6 +149,58 @@ describe("sessions management with Redis", () => {
     expect(session).not.toBeNull();
     expect(session?.userId).toBe("user_456");
     expect(session?.profile?.name).toBe("Bob");
+  });
+
+  it("validates an active session without renewing its Redis TTL or activity metadata", async () => {
+    const { event: createEvent } = createMockEvent();
+    const sessionId = await createBearerAuthSession(createEvent, {
+      userId: "user_liveness",
+      token: "server-only-token",
+    });
+    const key = `session:${sessionId}`;
+    const before = JSON.parse((await redis.get(key))!);
+    const ttlBefore = await redis.ttl(key);
+
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    const { event: validationEvent, setCookies } = createMockEvent({
+      nuxt_bearer_auth_session_dev: sessionId,
+    });
+
+    await expect(validateBearerAuthSession(validationEvent)).resolves.toBe(true);
+
+    const after = JSON.parse((await redis.get(key))!);
+    const ttlAfter = await redis.ttl(key);
+    expect(after.expiresAt).toBe(before.expiresAt);
+    expect(after.lastActivity).toBe(before.lastActivity);
+    expect(ttlAfter).toBeLessThan(ttlBefore);
+    expect(setCookies).toHaveLength(0);
+  });
+
+  it("returns false for missing, revoked, expired, and malformed sessions without deleting cookies", async () => {
+    const { event: noCookie } = createMockEvent();
+    await expect(validateBearerAuthSession(noCookie)).resolves.toBe(false);
+
+    const { event: missingCookie, setCookies } = createMockEvent({
+      nuxt_bearer_auth_session_dev: "revoked-session",
+    });
+    await expect(validateBearerAuthSession(missingCookie)).resolves.toBe(false);
+    expect(setCookies).toHaveLength(0);
+
+    await redis.set("session:expired-liveness", JSON.stringify({
+      userId: "expired-user",
+      token: "expired-token",
+      expiresAt: Date.now() - 1000,
+    }));
+    const { event: expired } = createMockEvent({
+      nuxt_bearer_auth_session_dev: "expired-liveness",
+    });
+    await expect(validateBearerAuthSession(expired)).resolves.toBe(false);
+
+    await redis.set("session:malformed-liveness", "{not-json");
+    const { event: malformed } = createMockEvent({
+      nuxt_bearer_auth_session_dev: "malformed-liveness",
+    });
+    await expect(validateBearerAuthSession(malformed)).resolves.toBe(false);
   });
 
   it("returns null when no session cookie is present", async () => {

@@ -1,6 +1,7 @@
 import { navigateTo, useNuxtApp, useRuntimeConfig, useState } from "#app";
 import { computed, watch } from "vue";
 import { $fetch, type FetchOptions } from "ofetch";
+import { broadcastBearerAuthSessionInvalidation } from "../utils/session-sync";
 
 import type {
   AuthApiResponse,
@@ -62,6 +63,10 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
     };
     routes: {
       localApiPrefix: string;
+    };
+    sessionLiveness?: {
+      crossTab?: boolean;
+      channelName?: string;
     };
   };
   const apiPrefix = publicAuth.routes.localApiPrefix || "/api/auth";
@@ -338,6 +343,11 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
     } finally {
       clearAuthState();
       ready.value = true;
+      if (publicAuth.sessionLiveness?.crossTab !== false) {
+        broadcastBearerAuthSessionInvalidation(
+          publicAuth.sessionLiveness?.channelName || "nuxt-bearer-auth",
+        );
+      }
       await navigateTo(destination);
     }
   }
