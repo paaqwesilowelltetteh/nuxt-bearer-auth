@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { defineComponent, h, ref } from "vue";
+import { defineComponent, h, nextTick, ref } from "vue";
 import { mount } from "@vue/test-utils";
 
 const mocks = vi.hoisted(() => ({
@@ -125,6 +125,36 @@ describe("useBearerAuthSession", () => {
 
     await expect(session.validate({ force: true })).resolves.toBe("skipped");
     expect(mocks.fetch).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("starts a fresh probe after an auth transition while an older probe is pending", async () => {
+    let resolveOld!: (value: unknown) => void;
+    mocks.fetch.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveOld = resolve;
+      }),
+    );
+    mocks.fetch.mockResolvedValueOnce({ valid: true });
+
+    const { session, wrapper } = setup();
+    const oldProbe = session.validate({ force: true });
+
+    // Simulate logout followed by a new login while the old request is pending.
+    mocks.auth.status.value = "loading";
+    mocks.auth.isAuthenticated.value = false;
+    await nextTick();
+    mocks.auth.status.value = "authenticated";
+    mocks.auth.isAuthenticated.value = true;
+    await nextTick();
+
+    const newProbe = session.validate({ force: true });
+    expect(mocks.fetch).toHaveBeenCalledTimes(2);
+
+    resolveOld({ valid: true });
+    await expect(oldProbe).resolves.toBe("skipped");
+    await expect(newProbe).resolves.toBe("valid");
+    expect(session.validity.value).toBe("valid");
     wrapper.unmount();
   });
 

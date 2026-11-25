@@ -2,7 +2,8 @@ export type AuthStatus =
   | "idle"
   | "loading"
   | "authenticated"
-  | "unauthenticated";
+  | "unauthenticated"
+  | "unavailable";
 
 export interface BearerAuthUser {
   id?: string | number;

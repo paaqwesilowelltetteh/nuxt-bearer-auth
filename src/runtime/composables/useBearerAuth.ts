@@ -101,6 +101,22 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
   const loading = computed(() => status.value === "loading");
   const isAuthenticated = computed(() => status.value === "authenticated");
 
+  function getHttpStatusCode(err: unknown): number | undefined {
+    if (!err || typeof err !== "object") return undefined;
+    const value = err as {
+      statusCode?: number;
+      status?: number;
+      response?: { status?: number };
+      data?: { statusCode?: number };
+    };
+    return (
+      value.statusCode ??
+      value.status ??
+      value.response?.status ??
+      value.data?.statusCode
+    );
+  }
+
   function resolveErrorMessage(err: unknown, fallback: string) {
     if (err instanceof Error) return err.message;
     if (
@@ -284,6 +300,7 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
       );
     }
 
+    const previousStatus = status.value;
     status.value = "loading";
     error.value = null;
 
@@ -303,14 +320,25 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
 
       return { data: user.value, error: null };
     } catch (err) {
-      clearAuthState();
+      if (getHttpStatusCode(err) === 401) {
+        clearAuthState();
+      } else {
+        // A transport, proxy, or server failure is not proof that the
+        // Redis-backed session has expired. Preserve the last known snapshot.
+        status.value = previousStatus === "authenticated"
+          ? "authenticated"
+          : previousStatus === "unauthenticated"
+            ? "unauthenticated"
+            : "unavailable";
+      }
       ready.value = true;
-      error.value = resolveErrorMessage(err, "Session expired");
-      return { data: null, error: error.value };
+      error.value = resolveErrorMessage(err, "Unable to fetch the current user");
+      return { data: user.value, error: error.value };
     }
   }
 
   async function refresh() {
+    const previousStatus = status.value;
     try {
       const response = await authFetch<AuthApiResponse<User>>(
         `${apiPrefix}/refresh`,
@@ -328,7 +356,11 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
       ready.value = true;
       return response;
     } catch (err) {
-      clearAuthState();
+      if (getHttpStatusCode(err) === 401) {
+        clearAuthState();
+      } else {
+        status.value = previousStatus;
+      }
       ready.value = true;
       throw err;
     }
@@ -337,13 +369,18 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
   async function logout(destination = publicAuth.redirects.logout) {
     status.value = "loading";
     error.value = null;
+    let localLogoutConfirmed = false;
 
     try {
       await authFetch(`${apiPrefix}/logout`, { method: "POST" });
+      // The local Nitro handler destroys the Redis session even when the
+      // upstream API logout fails. A successful response therefore confirms
+      // local invalidation; a transport failure does not.
+      localLogoutConfirmed = true;
     } finally {
       clearAuthState();
       ready.value = true;
-      if (publicAuth.sessionLiveness?.crossTab !== false) {
+      if (localLogoutConfirmed && publicAuth.sessionLiveness?.crossTab !== false) {
         broadcastBearerAuthSessionInvalidation(
           publicAuth.sessionLiveness?.channelName || "nuxt-bearer-auth",
         );
@@ -388,6 +425,13 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
 
   function setAuthReady(value: boolean) {
     ready.value = value;
+  }
+
+  function setAuthUnavailable(message = "Authentication service is temporarily unavailable.") {
+    user.value = null;
+    abilities.value = null;
+    error.value = message;
+    status.value = "unavailable";
   }
 
   function setUser(value: User | null) {
@@ -439,6 +483,7 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
     setUser,
     setAbilities,
     setAuthReady,
+    setAuthUnavailable,
     setServerChecked,
     clearAuthState,
   };

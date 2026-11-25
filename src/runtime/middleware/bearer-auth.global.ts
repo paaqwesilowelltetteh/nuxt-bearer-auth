@@ -61,6 +61,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
     });
   }
 
+  // SSR could not reach Redis, so authentication is unknown rather than
+  // confirmed absent. Avoid converting an infrastructure outage into a
+  // misleading login redirect; protected server APIs still enforce auth.
+  if (auth.status.value === "unavailable") return;
+
   if (auth.isAuthenticated.value && isAuthPage) {
     const redirectPath =
       typeof to.query.redirect === "string"

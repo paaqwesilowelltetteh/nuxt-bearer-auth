@@ -23,8 +23,14 @@ import type {
   BearerAuthSessionLivenessConfig,
 } from "../../types";
 
-let validationPromise: Promise<BearerAuthSessionValidationResult> | null = null;
+let validationPromise: {
+  generation: number;
+  promise: Promise<BearerAuthSessionValidationResult>;
+} | null = null;
 let lastValidationAt = 0;
+// Shared across composable instances so every in-flight response is invalidated
+// when any instance observes an auth transition.
+let authGeneration = 0;
 
 function getStatusCode(error: unknown): number | undefined {
   if (!error || typeof error !== "object") return undefined;
@@ -92,6 +98,7 @@ export function useBearerAuthSession(
     // Multiple mounted composable instances share Nuxt state; process a given
     // invalidation once so consumer callbacks are not duplicated.
     if (validity.value === "invalid") return;
+    authGeneration += 1;
     validity.value = "invalid";
     checkedAt.value = Date.now();
     validationError.value = null;
@@ -109,7 +116,9 @@ export function useBearerAuthSession(
     if (import.meta.server) return "skipped";
     if (!auth.ready.value || !auth.isAuthenticated.value) return "skipped";
 
-    if (validationPromise) return validationPromise;
+    if (validationPromise?.generation === authGeneration) {
+      return validationPromise.promise;
+    }
 
     const now = Date.now();
     if (
@@ -181,17 +190,19 @@ export function useBearerAuthSession(
       }
     })();
 
-    validationPromise = currentPromise;
+    validationPromise = {
+      generation: generationAtStart,
+      promise: currentPromise,
+    };
     try {
       return await currentPromise;
     } finally {
-      if (validationPromise === currentPromise) {
+      if (validationPromise?.promise === currentPromise) {
         validationPromise = null;
       }
     }
   }
 
-  let authGeneration = 0;
   let interval: ReturnType<typeof setInterval> | undefined;
   let stopNavigationGuard: (() => void) | undefined;
   let stopCrossTab: (() => void) | undefined;

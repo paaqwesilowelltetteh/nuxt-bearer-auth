@@ -65,6 +65,19 @@ describe("Route Middleware (bearer-auth.global.ts)", () => {
     expect(mockNavigateTo).not.toHaveBeenCalled();
   });
 
+  it("does not redirect when SSR authentication state is unavailable", async () => {
+    mockStatus.value = "unavailable";
+    mockAuth.isAuthenticated.value = false;
+    const result = await (bearerAuthRouteMiddleware as any)({
+      path: "/dashboard",
+      fullPath: "/dashboard",
+      query: {},
+      meta: {},
+    });
+    expect(result).toBeUndefined();
+    expect(mockNavigateTo).not.toHaveBeenCalled();
+  });
+
   it("redirects unauthenticated user trying to access protected route to /login with redirect query", async () => {
     mockAuth.isAuthenticated.value = false;
     mockAuth.ready.value = true;
