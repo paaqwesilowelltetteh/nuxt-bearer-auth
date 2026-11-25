@@ -524,3 +524,12 @@ The endpoint is not a session-enumeration API: it accepts only the caller's opaq
 The global route middleware waits for an in-progress authentication state transition to leave `loading` before making a redirect decision. A temporary loading state is not treated as an anonymous session.
 
 During SSR the liveness composable is a no-op. The initial user snapshot can be hydrated as before; a client-side probe can then confirm the underlying session. A network, timeout, Redis, or other non-401 error produces `unavailable` and does not clear authentication state. Only a confirmed unauthenticated response produces `invalid`.
+
+
+### Handling temporary authentication infrastructure failures
+
+Authentication state now distinguishes a confirmed unauthenticated session from an unavailable authentication service. If Redis cannot be reached during SSR, the module exposes `status === "unavailable"` rather than clearing the session as though the user had logged out. Route middleware avoids an automatic login redirect in this state; protected Nitro routes and the upstream API remain authoritative and must continue enforcing authentication.
+
+On the client, `fetchUser()` and `refresh()` clear authentication only for a confirmed HTTP 401. Network errors, timeouts, and server errors preserve the last known user snapshot and report the request error. Applications should provide a retry or service-unavailable experience for this state; a preserved client snapshot is not proof that the server will authorize a request.
+
+A successful response from the local logout endpoint confirms that the local Redis session was destroyed (the endpoint handles upstream logout errors itself). If the request fails before a response is received, the current tab is cleared locally but does not broadcast invalidation to other tabs, because server-side revocation could not be confirmed.
