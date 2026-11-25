@@ -23,7 +23,10 @@ import type {
   BearerAuthSessionLivenessConfig,
 } from "../../types";
 
-let validationPromise: Promise<BearerAuthSessionValidationResult> | null = null;
+let validationPromise: {
+  generation: number;
+  promise: Promise<BearerAuthSessionValidationResult>;
+} | null = null;
 let lastValidationAt = 0;
 // Shared across composable instances so every in-flight response is invalidated
 // when any instance observes an auth transition.
@@ -113,7 +116,9 @@ export function useBearerAuthSession(
     if (import.meta.server) return "skipped";
     if (!auth.ready.value || !auth.isAuthenticated.value) return "skipped";
 
-    if (validationPromise) return validationPromise;
+    if (validationPromise?.generation === authGeneration) {
+      return validationPromise.promise;
+    }
 
     const now = Date.now();
     if (
@@ -185,11 +190,14 @@ export function useBearerAuthSession(
       }
     })();
 
-    validationPromise = currentPromise;
+    validationPromise = {
+      generation: generationAtStart,
+      promise: currentPromise,
+    };
     try {
       return await currentPromise;
     } finally {
-      if (validationPromise === currentPromise) {
+      if (validationPromise?.promise === currentPromise) {
         validationPromise = null;
       }
     }
