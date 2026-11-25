@@ -83,6 +83,20 @@ describe("SSR Server Plugin (bearer-auth.server.ts)", () => {
     expect(mockAuth.setServerChecked).toHaveBeenCalled();
   });
 
+  it("does not clear an existing auth snapshot when SSR has no session", async () => {
+    mockGetBearerAuthSession.mockResolvedValueOnce(null);
+    const nuxtApp = {
+      ssrContext: { event: { node: {}, context: {} } },
+      payload: {} as any,
+    };
+
+    await (bearerAuthServerPlugin as any)(nuxtApp);
+
+    expect(mockAuth.setUser).toHaveBeenCalledWith(null);
+    expect(mockAuth.setAbilities).toHaveBeenCalledWith(null);
+    expect(nuxtApp.payload.bearerAuth.status).toBe("unauthenticated");
+  });
+
   it("handles Redis error during SSR hydration safely without hanging", async () => {
     mockGetBearerAuthSession.mockRejectedValueOnce(
       new Error("Redis connection dropped"),
