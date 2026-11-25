@@ -433,6 +433,21 @@ The client authentication state and the server-side session are related but dist
 
 Nuxt Bearer Auth exposes a read-only liveness endpoint at `GET /api/auth/session` (under the configured `routes.localApiPrefix`) and the `useBearerAuthSession()` composable. The endpoint checks the opaque HTTP-only cookie against Redis and returns only `{ valid: true }`. Missing, expired, revoked, or malformed sessions receive 401. Redis/storage failures remain server errors and are reported client-side as `unavailable`, not as logout.
 
+### Server-side validation helper
+
+Server handlers can use the same read-only primitive without calling the HTTP endpoint:
+
+```ts
+import { validateBearerAuthSession } from "nuxt-bearer-auth/server";
+
+export default defineEventHandler(async (event) => {
+  const sessionIsValid = await validateBearerAuthSession(event);
+  return { sessionIsValid };
+});
+```
+
+The helper returns `false` for a missing, revoked, malformed, or expired session. Redis connection and read errors are allowed to propagate so infrastructure failures are not confused with unauthenticated state. It returns no session object or credential material and does not mutate Redis, cookies, or activity metadata.
+
 ### Enable automatic liveness checks
 
 Automatic checks are disabled by default to preserve existing application behaviour. Enable them in Nuxt configuration:

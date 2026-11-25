@@ -178,6 +178,20 @@ describe("sessions management with Redis", () => {
     expect(setCookies).toHaveLength(0);
   });
 
+  it("propagates Redis read failures instead of reporting an invalid session", async () => {
+    const { event } = createMockEvent({
+      nuxt_bearer_auth_session_dev: "redis-failure-session",
+    });
+    const getSpy = vi
+      .spyOn(redis, "get")
+      .mockRejectedValueOnce(new Error("Redis unavailable"));
+
+    await expect(validateBearerAuthSession(event)).rejects.toThrow(
+      "Redis unavailable",
+    );
+    getSpy.mockRestore();
+  });
+
   it("returns false for missing, revoked, expired, and malformed sessions without deleting cookies", async () => {
     const { event: noCookie } = createMockEvent();
     await expect(validateBearerAuthSession(noCookie)).resolves.toBe(false);
