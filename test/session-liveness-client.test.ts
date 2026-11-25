@@ -3,14 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, ref } from "vue";
 import { mount } from "@vue/test-utils";
 
-const state = vi.hoisted(() => new Map<string, { value: unknown }>());
-const fetchMock = vi.hoisted(() => vi.fn());
-const clearAuthState = vi.hoisted(() => vi.fn());
-const auth = vi.hoisted(() => ({
-  ready: { value: true },
-  isAuthenticated: { value: true },
-  status: { value: "authenticated" },
-  clearAuthState,
+const mocks = vi.hoisted(() => ({
+  state: new Map<string, { value: unknown }>(),
+  fetch: vi.fn(),
+  clearAuthState: vi.fn(),
+  auth: {} as Record<string, any>,
 }));
 
 vi.mock("#app", () => ({
@@ -27,15 +24,15 @@ vi.mock("#app", () => ({
     },
   }),
   useState: (key: string, factory: () => unknown) => {
-    if (!state.has(key)) state.set(key, { value: factory() });
-    return state.get(key);
+    if (!mocks.state.has(key)) mocks.state.set(key, { value: factory() });
+    return mocks.state.get(key);
   },
   useRouter: () => ({ afterEach: vi.fn(() => vi.fn()) }),
 }));
 
-vi.mock("ofetch", () => ({ $fetch: fetchMock }));
+vi.mock("ofetch", () => ({ $fetch: mocks.fetch }));
 vi.mock("../src/runtime/composables/useBearerAuth", () => ({
-  useBearerAuth: () => auth,
+  useBearerAuth: () => mocks.auth,
 }));
 vi.mock("../src/runtime/utils/session-sync", () => ({
   broadcastBearerAuthSessionInvalidation: vi.fn(),
@@ -59,53 +56,56 @@ function setup() {
 
 describe("useBearerAuthSession", () => {
   beforeEach(() => {
-    state.clear();
-    fetchMock.mockReset();
-    clearAuthState.mockReset();
-    auth.ready.value = true;
-    auth.isAuthenticated.value = true;
-    auth.status.value = "authenticated";
+    mocks.state.clear();
+    mocks.fetch.mockReset();
+    mocks.clearAuthState.mockReset();
+    Object.assign(mocks.auth, {
+      ready: ref(true),
+      isAuthenticated: ref(true),
+      status: ref("authenticated"),
+      clearAuthState: mocks.clearAuthState,
+    });
   });
 
   it("validates successfully without changing auth status or reloading profile", async () => {
-    fetchMock.mockResolvedValueOnce({ valid: true });
+    mocks.fetch.mockResolvedValueOnce({ valid: true });
     const { session, wrapper } = setup();
 
     await expect(session.validate({ force: true })).resolves.toBe("valid");
     expect(session.validity.value).toBe("valid");
-    expect(auth.status.value).toBe("authenticated");
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(mocks.auth.status.value).toBe("authenticated");
+    expect(mocks.fetch).toHaveBeenCalledWith(
       "/api/auth/session",
       expect.objectContaining({ method: "GET", retry: 0 }),
     );
-    expect(clearAuthState).not.toHaveBeenCalled();
+    expect(mocks.clearAuthState).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 
   it("treats a 401 as confirmed invalidation", async () => {
-    fetchMock.mockRejectedValueOnce({ statusCode: 401 });
+    mocks.fetch.mockRejectedValueOnce({ statusCode: 401 });
     const { session, wrapper } = setup();
 
     await expect(session.validate({ force: true })).resolves.toBe("invalid");
     expect(session.validity.value).toBe("invalid");
-    expect(clearAuthState).toHaveBeenCalledTimes(1);
+    expect(mocks.clearAuthState).toHaveBeenCalledTimes(1);
     wrapper.unmount();
   });
 
   it("does not log out when the validation service is unavailable", async () => {
-    fetchMock.mockRejectedValueOnce({ statusCode: 503, message: "Unavailable" });
+    mocks.fetch.mockRejectedValueOnce({ statusCode: 503, message: "Unavailable" });
     const { session, wrapper } = setup();
 
     await expect(session.validate({ force: true })).resolves.toBe("unavailable");
     expect(session.validity.value).toBe("unavailable");
-    expect(auth.status.value).toBe("authenticated");
-    expect(clearAuthState).not.toHaveBeenCalled();
+    expect(mocks.auth.status.value).toBe("authenticated");
+    expect(mocks.clearAuthState).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 
   it("shares concurrent validation probes", async () => {
     let resolveFetch!: (value: unknown) => void;
-    fetchMock.mockReturnValueOnce(
+    mocks.fetch.mockReturnValueOnce(
       new Promise((resolve) => {
         resolveFetch = resolve;
       }),
@@ -114,7 +114,7 @@ describe("useBearerAuthSession", () => {
 
     const first = session.validate({ force: true });
     const second = session.validate({ force: true });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
 
     resolveFetch({ valid: true });
     await expect(Promise.all([first, second])).resolves.toEqual([

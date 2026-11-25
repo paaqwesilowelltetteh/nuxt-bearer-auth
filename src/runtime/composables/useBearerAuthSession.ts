@@ -205,6 +205,11 @@ export function useBearerAuthSession(
         validity.value = "unknown";
         checkedAt.value = null;
         validationError.value = null;
+      } else if (status !== "authenticated" && validity.value !== "invalid") {
+        // Loading and ordinary local logout are not proof of expiry.
+        validity.value = "unknown";
+        checkedAt.value = null;
+        validationError.value = null;
       }
     },
   );
@@ -249,7 +254,6 @@ export function useBearerAuthSession(
         validateAutomatically();
       });
     }
-
   });
 
   onScopeDispose(() => {
