@@ -20,6 +20,7 @@ import type {
   BearerAuthSessionValidity,
   BearerAuthSessionValidationResult,
   UseBearerAuthSessionOptions,
+  BearerAuthSessionLivenessConfig,
 } from "../../types";
 
 let validationPromise: Promise<BearerAuthSessionValidationResult> | null = null;
@@ -53,7 +54,7 @@ export function useBearerAuthSession(
   const runtimeConfig = useRuntimeConfig();
   const publicAuth = runtimeConfig.public.bearerAuth as {
     routes: { localApiPrefix: string };
-    sessionLiveness?: Partial<UseBearerAuthSessionOptions>;
+    sessionLiveness?: Partial<BearerAuthSessionLivenessConfig>;
   };
   const defaults = publicAuth.sessionLiveness || {};
   const settings = {
@@ -177,6 +178,9 @@ export function useBearerAuthSession(
   let interval: ReturnType<typeof setInterval> | undefined;
   let stopNavigationGuard: (() => void) | undefined;
   let stopCrossTab: (() => void) | undefined;
+  let onFocus: (() => void) | undefined;
+  let onVisibilityChange: (() => void) | undefined;
+  const router = settings.validateOnNavigation ? useRouter() : undefined;
 
   function canRunAutomaticCheck() {
     return (
@@ -217,10 +221,10 @@ export function useBearerAuthSession(
 
     if (settings.validateOnMount) validateAutomatically();
 
-    const onFocus = () => {
+    onFocus = () => {
       if (settings.validateOnFocus) validateAutomatically();
     };
-    const onVisibilityChange = () => {
+    onVisibilityChange = () => {
       if (
         settings.validateOnVisibilityChange &&
         document.visibilityState === "visible"
@@ -240,23 +244,22 @@ export function useBearerAuthSession(
       interval = setInterval(validateAutomatically, settings.intervalMs);
     }
 
-    if (settings.validateOnNavigation) {
-      const router = useRouter();
+    if (settings.validateOnNavigation && router) {
       stopNavigationGuard = router.afterEach(() => {
         validateAutomatically();
       });
     }
 
-    onScopeDispose(() => {
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    });
   });
 
   onScopeDispose(() => {
     if (interval) clearInterval(interval);
     stopNavigationGuard?.();
     stopCrossTab?.();
+    if (onFocus) window.removeEventListener("focus", onFocus);
+    if (onVisibilityChange) {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    }
   });
 
   return {

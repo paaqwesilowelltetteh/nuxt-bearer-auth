@@ -166,20 +166,15 @@ const module = defineNuxtModule<BearerAuthModuleOptions>({
       nuxt.options.runtimeConfig.public.bearerAuth,
       {
         redirects: options.redirects,
-        routes: options.routes,
         // Serializable derived flag so the global middleware knows whether the
         // authorization subsystem is active. Never put functions here.
         authorizationEnabled: options.authorization?.enabled ?? false,
         sessionLiveness: options.sessionLiveness,
         routes: {
           ...options.routes,
-          // The validation endpoint must bypass the ordinary authenticated
-          // middleware because it performs its own non-renewing cookie check.
-          publicApiPrefixes: [
-            ...(options.routes?.publicApiPrefixes ??
-              defaultOptions.routes.publicApiPrefixes),
-            `${options.routes?.localApiPrefix || "/api/auth"}/session`,
-          ],
+          publicApiPrefixes:
+            options.routes?.publicApiPrefixes ??
+            defaultOptions.routes.publicApiPrefixes,
         },
       },
     );
