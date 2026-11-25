@@ -130,9 +130,10 @@ describe("useBearerAuthSession", () => {
 
   it("runs configured periodic, focus, and visibility checks and cleans up", async () => {
     vi.useFakeTimers();
+    const visibilityState = { value: "visible" };
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
-      value: "visible",
+      get: () => visibilityState.value,
     });
     mocks.fetch.mockResolvedValue({ valid: true });
     const { wrapper } = setup({
@@ -153,6 +154,8 @@ describe("useBearerAuthSession", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(mocks.fetch).toHaveBeenCalledTimes(3);
 
+    visibilityState.value = "visible";
+    expect(document.visibilityState).toBe("visible");
     document.dispatchEvent(new Event("visibilitychange"));
     await vi.advanceTimersByTimeAsync(0);
     expect(mocks.fetch).toHaveBeenCalledTimes(4);
