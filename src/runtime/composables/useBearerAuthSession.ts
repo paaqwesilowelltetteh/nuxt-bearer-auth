@@ -89,6 +89,9 @@ export function useBearerAuthSession(
   const isValid = computed(() => validity.value === "valid");
 
   function handleInvalidation() {
+    // Multiple mounted composable instances share Nuxt state; process a given
+    // invalidation once so consumer callbacks are not duplicated.
+    if (validity.value === "invalid") return;
     validity.value = "invalid";
     checkedAt.value = Date.now();
     validationError.value = null;
@@ -122,6 +125,7 @@ export function useBearerAuthSession(
     }
 
     lastValidationAt = now;
+    const generationAtStart = authGeneration;
     const currentPromise = (async () => {
       validating.value = true;
       try {
@@ -130,11 +134,23 @@ export function useBearerAuthSession(
           retry: 0,
           cache: "no-store",
         });
+        if (
+          generationAtStart !== authGeneration ||
+          !auth.isAuthenticated.value
+        ) {
+          return validity.value === "invalid" ? "invalid" : "skipped";
+        }
         validity.value = "valid";
         checkedAt.value = Date.now();
         validationError.value = null;
         return "valid" as const;
       } catch (error) {
+        if (
+          generationAtStart !== authGeneration ||
+          !auth.isAuthenticated.value
+        ) {
+          return validity.value === "invalid" ? "invalid" : "skipped";
+        }
         if (getStatusCode(error) === 401) {
           validity.value = "invalid";
           checkedAt.value = Date.now();
@@ -175,6 +191,7 @@ export function useBearerAuthSession(
     }
   }
 
+  let authGeneration = 0;
   let interval: ReturnType<typeof setInterval> | undefined;
   let stopNavigationGuard: (() => void) | undefined;
   let stopCrossTab: (() => void) | undefined;
@@ -201,6 +218,7 @@ export function useBearerAuthSession(
   watch(
     auth.status,
     (status, previousStatus) => {
+      authGeneration += 1;
       if (status === "authenticated" && previousStatus !== "authenticated") {
         validity.value = "unknown";
         checkedAt.value = null;
