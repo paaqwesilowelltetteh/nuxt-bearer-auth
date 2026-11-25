@@ -40,8 +40,9 @@ vi.mock("../src/runtime/utils/session-sync", () => ({
 }));
 
 import { useBearerAuthSession } from "../src/runtime/composables/useBearerAuthSession";
+import type { UseBearerAuthSessionOptions } from "../src/types";
 
-function setup(options = {}) {
+function setup(options: UseBearerAuthSessionOptions = {}) {
   let session!: ReturnType<typeof useBearerAuthSession>;
   const wrapper = mount(
     defineComponent({
@@ -144,13 +145,16 @@ describe("useBearerAuthSession", () => {
     });
 
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(0);
     await vi.advanceTimersByTimeAsync(1000);
     expect(mocks.fetch).toHaveBeenCalledTimes(2);
 
     window.dispatchEvent(new Event("focus"));
+    await vi.advanceTimersByTimeAsync(0);
     expect(mocks.fetch).toHaveBeenCalledTimes(3);
 
     document.dispatchEvent(new Event("visibilitychange"));
+    await vi.advanceTimersByTimeAsync(0);
     expect(mocks.fetch).toHaveBeenCalledTimes(4);
 
     wrapper.unmount();
