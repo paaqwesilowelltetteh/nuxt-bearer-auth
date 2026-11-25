@@ -37,7 +37,7 @@ npm install nuxt-bearer-auth redis nuxt-csurf
 
 ### Nuxt compatibility
 
-The package declares compatibility with Nuxt `^3.12.0 || ^4.0.0`. The [automated consumer matrix](https://github.com/paaqwesilowelltetteh/nuxt-bearer-auth/actions/workflows/nuxt-compatibility.yml) targets exact releases Nuxt 3.12.0, 3.21.11, and 4.6.1 on Node.js 24.19.0 and npm 10.0.0. Nuxt 3.21.11 and 4.6.0 have been manually verified; Nuxt 3.12.0 and 4.6.1 await their CI results. These representative checks do not test every version in the declared peer range. Nuxt 3 reached end of life on July 31, 2026; use Nuxt 4 for new applications where possible.
+The package declares compatibility with Nuxt `^3.12.0 || ^4.0.0`. The [automated consumer matrix](https://github.com/paaqwesilowelltetteh/nuxt-bearer-auth/actions/workflows/nuxt-compatibility.yml) targets exact releases Nuxt 3.12.0, 3.21.11, and 4.6.1 on Node.js 24.19.0 and npm 10.0.0. All three matrix targets have passed in CI. Nuxt 3.21.11 and 4.6.0 have also been manually verified. These representative checks do not test every version in the declared peer range. Nuxt 3 reached end of life on July 31, 2026; use Nuxt 4 for new applications where possible.
 
 ```ts
 export default defineNuxtConfig({
