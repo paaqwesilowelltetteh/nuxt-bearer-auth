@@ -325,9 +325,11 @@ export function useBearerAuth<User extends BearerAuthUser = BearerAuthUser>() {
       } else {
         // A transport, proxy, or server failure is not proof that the
         // Redis-backed session has expired. Preserve the last known snapshot.
-        status.value = previousStatus === "loading"
-          ? (user.value ? "authenticated" : "unavailable")
-          : previousStatus;
+        status.value = previousStatus === "authenticated"
+          ? "authenticated"
+          : previousStatus === "unauthenticated"
+            ? "unauthenticated"
+            : "unavailable";
       }
       ready.value = true;
       error.value = resolveErrorMessage(err, "Unable to fetch the current user");
