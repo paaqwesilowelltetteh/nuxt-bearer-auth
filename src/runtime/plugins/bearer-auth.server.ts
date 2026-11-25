@@ -22,10 +22,13 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     };
   } catch (error) {
     console.error("[nuxt-bearer-auth] SSR auth hydration failed:", error);
-    auth.clearAuthState();
+    // A Redis/network failure cannot establish that the session is invalid.
+    // Keep the state explicitly unavailable so route middleware does not
+    // redirect the user to login as though their session had expired.
+    auth.setAuthUnavailable();
     nuxtApp.payload.bearerAuth = {
       user: null,
-      status: "unauthenticated",
+      status: "unavailable",
       abilities: null,
     };
   } finally {
