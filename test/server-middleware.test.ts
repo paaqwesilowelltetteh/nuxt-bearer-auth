@@ -5,6 +5,7 @@ import { Socket } from "node:net";
 
 let mockPublicConfig = {
   routes: {
+    localApiPrefix: "/api/auth",
     protectedApiPrefixes: ["/api"],
     publicApiPrefixes: [
       "/api/auth/login",
@@ -114,6 +115,28 @@ describe("Nitro server middleware/auth", () => {
     );
 
     expect(mockGetBearerAuthSession).toHaveBeenCalledWith(event);
+  });
+
+  it("bypasses session lookup only for the exact configured liveness path", async () => {
+    const event = createMockH3Event("/api/auth/session", "GET", null);
+    await authServerMiddleware(event);
+    expect(mockGetBearerAuthSession).not.toHaveBeenCalled();
+  });
+
+  it("does not make similarly prefixed liveness paths public", async () => {
+    const event = createMockH3Event("/api/auth/session-evil", "POST", null);
+    await expect(authServerMiddleware(event)).rejects.toThrow(
+      "Authentication required",
+    );
+    expect(mockGetBearerAuthSession).toHaveBeenCalledWith(event);
+  });
+
+  it("honours a custom local API prefix for the liveness exemption", async () => {
+    mockPublicConfig.routes.localApiPrefix = "/internal/auth";
+    const event = createMockH3Event("/internal/auth/session", "GET", null);
+    await authServerMiddleware(event);
+    expect(mockGetBearerAuthSession).not.toHaveBeenCalled();
+    mockPublicConfig.routes.localApiPrefix = "/api/auth";
   });
 
   it("allows safe non-protected methods (GET, HEAD, OPTIONS) without authentication", async () => {
