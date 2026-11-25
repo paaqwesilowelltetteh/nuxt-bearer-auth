@@ -172,6 +172,8 @@ describe("sessions management with Redis", () => {
     const ttlAfter = await redis.ttl(key);
     expect(after.expiresAt).toBe(before.expiresAt);
     expect(after.lastActivity).toBe(before.lastActivity);
+    expect(after.token).toBe(before.token);
+    expect(after.refreshToken).toBe(before.refreshToken);
     expect(ttlAfter).toBeLessThan(ttlBefore);
     expect(setCookies).toHaveLength(0);
   });

@@ -41,12 +41,12 @@ vi.mock("../src/runtime/utils/session-sync", () => ({
 
 import { useBearerAuthSession } from "../src/runtime/composables/useBearerAuthSession";
 
-function setup() {
+function setup(options = {}) {
   let session!: ReturnType<typeof useBearerAuthSession>;
   const wrapper = mount(
     defineComponent({
       setup() {
-        session = useBearerAuthSession();
+        session = useBearerAuthSession(options);
         return () => h("div");
       },
     }),
@@ -101,6 +101,63 @@ describe("useBearerAuthSession", () => {
     expect(mocks.auth.status.value).toBe("authenticated");
     expect(mocks.clearAuthState).not.toHaveBeenCalled();
     wrapper.unmount();
+  });
+
+  it("throttles repeated probes within the configured minimum interval", async () => {
+    mocks.fetch.mockResolvedValue({ valid: true });
+    const { session, wrapper } = setup({ minIntervalMs: 60_000 });
+
+    await expect(session.validate({ force: true })).resolves.toBe("valid");
+    await expect(session.validate()).resolves.toBe("valid");
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
+  });
+
+  it("does nothing when no authenticated session exists", async () => {
+    Object.assign(mocks.auth, {
+      ready: ref(true),
+      isAuthenticated: ref(false),
+      status: ref("unauthenticated"),
+      clearAuthState: mocks.clearAuthState,
+    });
+    const { session, wrapper } = setup();
+
+    await expect(session.validate({ force: true })).resolves.toBe("skipped");
+    expect(mocks.fetch).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("runs configured periodic, focus, and visibility checks and cleans up", async () => {
+    vi.useFakeTimers();
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+    mocks.fetch.mockResolvedValue({ valid: true });
+    const { wrapper } = setup({
+      enabled: true,
+      intervalMs: 1000,
+      minIntervalMs: 0,
+      validateOnMount: true,
+      validateOnFocus: true,
+      validateOnVisibilityChange: true,
+    });
+
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(mocks.fetch).toHaveBeenCalledTimes(2);
+
+    window.dispatchEvent(new Event("focus"));
+    expect(mocks.fetch).toHaveBeenCalledTimes(3);
+
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(mocks.fetch).toHaveBeenCalledTimes(4);
+
+    wrapper.unmount();
+    expect(vi.getTimerCount()).toBe(0);
+    window.dispatchEvent(new Event("focus"));
+    expect(mocks.fetch).toHaveBeenCalledTimes(4);
+    vi.useRealTimers();
   });
 
   it("shares concurrent validation probes", async () => {

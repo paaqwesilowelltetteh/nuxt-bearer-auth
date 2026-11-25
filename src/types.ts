@@ -147,9 +147,11 @@ export type BearerAuthSessionValidationResult =
   | "skipped";
 
 export interface UseBearerAuthSessionOptions
-  extends Partial<BearerAuthSessionLivenessConfig> {
+  extends Partial<
+    Omit<BearerAuthSessionLivenessConfig, "crossTab" | "channelName">
+  > {
   /** Called when this tab or another tab confirms that the session is invalid. */
-  onSessionExpired?: () => void;
+  onSessionInvalidated?: () => void;
   /** Called when a liveness probe cannot establish session validity. */
   onValidationError?: (error: unknown) => void;
 }

@@ -461,7 +461,7 @@ Call the composable once in a persistent layout or app shell:
 ```vue
 <script setup lang="ts">
 const session = useBearerAuthSession({
-  onSessionExpired() {
+  onSessionInvalidated() {
     // Choose the experience that fits your application:
     // show a dialog, clear app-specific state, or navigate to login.
   },
@@ -494,11 +494,11 @@ The result of `validate()` is `"valid" | "invalid" | "unavailable" | "skipped"`.
 - `onlyWhenVisible: true` prevents automatic checks in hidden tabs.
 - Timers and listeners are removed when the composable's Vue scope is disposed.
 
-The same settings can be overridden per composable call. `onSessionExpired` runs for a confirmed 401 or a cross-tab invalidation. The module does not choose a login route or redirect strategy.
+Liveness triggers and intervals can be overridden per composable call. Cross-tab `crossTab` and `channelName` remain module-level settings so every tab shares one coordination policy. `onSessionInvalidated` runs for a confirmed 401 or a cross-tab invalidation. The module does not choose a login route or redirect strategy.
 
 ### Cross-tab invalidation
 
-Cross-tab synchronisation is enabled by default (`crossTab: true`) and can be disabled in module configuration or per composable. It uses `BroadcastChannel` when available and a `storage` event fallback otherwise. Only a fixed event discriminator is transmitted; tokens, cookies, session IDs, user IDs, and profile data are never broadcast. A receiving tab clears its local auth snapshot without rebroadcasting, preventing loops.
+Cross-tab synchronisation is enabled by default (`crossTab: true`) and can be disabled globally in module configuration with `sessionLiveness.crossTab: false`. It uses `BroadcastChannel` when available and a `storage` event fallback otherwise. Only a fixed event discriminator is transmitted; tokens, cookies, session IDs, user IDs, and profile data are never broadcast. A receiving tab clears its local auth snapshot without rebroadcasting, preventing loops.
 
 ### Sliding expiry and security
 

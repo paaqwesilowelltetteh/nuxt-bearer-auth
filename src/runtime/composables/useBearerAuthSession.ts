@@ -94,7 +94,7 @@ export function useBearerAuthSession(
     validationError.value = null;
     auth.clearAuthState();
     try {
-      options.onSessionExpired?.();
+      options.onSessionInvalidated?.();
     } catch {
       // Consumer callbacks must not interfere with auth-state invalidation.
     }
@@ -144,7 +144,7 @@ export function useBearerAuthSession(
             broadcastBearerAuthSessionInvalidation(settings.channelName);
           }
           try {
-            options.onSessionExpired?.();
+            options.onSessionInvalidated?.();
           } catch {
             // A consumer callback cannot undo confirmed invalidation.
           }
