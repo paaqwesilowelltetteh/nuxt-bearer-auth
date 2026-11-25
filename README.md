@@ -26,6 +26,7 @@ Reusable Nuxt authentication for APIs that issue bearer tokens. It is designed f
 - Declarative `<Can>` / `<Cannot>` UI authorization components (advisory rendering only)
 - Server-side `requireAbility()` guard via the `nuxt-bearer-auth/server` export
 - `useBearerAuth()` composable
+- `useBearerAuthSession()` composable for non-renewing session liveness
 - `useAuth()` alias for convenience
 
 ## Install
@@ -424,3 +425,102 @@ Planned extension points:
 ## License
 
 MIT
+
+
+## Session Lifecycle and Liveness
+
+The client authentication state and the server-side session are related but distinct. During SSR, Nuxt hydrates a user snapshot from the Redis-backed session. That snapshot can become stale later if the Redis session expires, is revoked from another device, or is deleted. A hydrated `isAuthenticated` value is therefore not a permanent guarantee that the server session still exists.
+
+Nuxt Bearer Auth exposes a read-only liveness endpoint at `GET /api/auth/session` (under the configured `routes.localApiPrefix`) and the `useBearerAuthSession()` composable. The endpoint checks the opaque HTTP-only cookie against Redis and returns only `{ valid: true }`. Missing, expired, revoked, or malformed sessions receive 401. Redis/storage failures remain server errors and are reported client-side as `unavailable`, not as logout.
+
+### Server-side validation helper
+
+Server handlers can use the same read-only primitive without calling the HTTP endpoint:
+
+```ts
+import { validateBearerAuthSession } from "nuxt-bearer-auth/server";
+
+export default defineEventHandler(async (event) => {
+  const sessionIsValid = await validateBearerAuthSession(event);
+  return { sessionIsValid };
+});
+```
+
+The helper returns `false` for a missing, revoked, malformed, or expired session. Redis connection and read errors are allowed to propagate so infrastructure failures are not confused with unauthenticated state. It returns no session object or credential material and does not mutate Redis, cookies, or activity metadata.
+
+### Enable automatic liveness checks
+
+Automatic checks are disabled by default to preserve existing application behaviour. Enable them in Nuxt configuration:
+
+```ts
+export default defineNuxtConfig({
+  modules: ["nuxt-bearer-auth"],
+  bearerAuth: {
+    sessionLiveness: {
+      enabled: true,
+      intervalMs: 5 * 60 * 1000,
+      minIntervalMs: 30 * 1000,
+      validateOnMount: true,
+      validateOnFocus: true,
+      validateOnVisibilityChange: true,
+      validateOnNavigation: false,
+      onlyWhenVisible: true,
+      crossTab: true,
+    },
+  },
+});
+```
+
+Call the composable once in a persistent layout or app shell:
+
+```vue
+<script setup lang="ts">
+const session = useBearerAuthSession({
+  onSessionInvalidated() {
+    // Choose the experience that fits your application:
+    // show a dialog, clear app-specific state, or navigate to login.
+  },
+  onValidationError(error) {
+    // Optional telemetry or a non-blocking connectivity notice.
+    console.warn("Session validation unavailable", error);
+  },
+});
+</script>
+```
+
+The returned API is:
+
+- `validity`: `"unknown" | "valid" | "invalid" | "unavailable"`
+- `isValid`: computed true only when the most recent probe succeeded
+- `checkedAt`: timestamp of the last completed probe
+- `error`: message for a temporary validation failure
+- `validating`: whether this composable is currently probing
+- `validate({ force?: boolean })`: manual validation; `force` bypasses the minimum interval
+
+The result of `validate()` is `"valid" | "invalid" | "unavailable" | "skipped"`. A probe is skipped during SSR or when no authenticated, ready client session exists. Concurrent callers share one in-flight request. Successful validation does not reload the profile, set auth status to `loading`, or rotate bearer tokens.
+
+### Triggers and defaults
+
+- `enabled` defaults to `false`; manual validation remains available.
+- `intervalMs` defaults to five minutes; set it to `0` to disable periodic checks.
+- `minIntervalMs` defaults to 30 seconds and throttles all automatic triggers.
+- Mount, focus, and visible-tab transitions are enabled when automatic checks are enabled.
+- Navigation checks are opt-in (`validateOnNavigation: false`).
+- `onlyWhenVisible: true` prevents automatic checks in hidden tabs.
+- Timers and listeners are removed when the composable's Vue scope is disposed.
+
+Liveness triggers and intervals can be overridden per composable call. Cross-tab `crossTab` and `channelName` remain module-level settings so every tab shares one coordination policy. `onSessionInvalidated` runs for a confirmed 401 or a cross-tab invalidation. The module does not choose a login route or redirect strategy.
+
+### Cross-tab invalidation
+
+Cross-tab synchronisation is enabled by default (`crossTab: true`) and can be disabled globally in module configuration with `sessionLiveness.crossTab: false`. It uses `BroadcastChannel` when available and a `storage` event fallback otherwise. Only a fixed event discriminator is transmitted; tokens, cookies, session IDs, user IDs, and profile data are never broadcast. A receiving tab clears its local auth snapshot without rebroadcasting, preventing loops.
+
+### Sliding expiry and security
+
+Liveness validation reads the cookie-backed Redis record directly. It does not use the ordinary session getter, which renews sliding expiry and updates activity metadata. The liveness endpoint does not extend Redis TTL, change activity timestamps, clear or refresh cookies, call the upstream API, or return session secrets. Only ordinary authenticated application requests continue to renew sliding activity under the existing policy.
+
+The endpoint is not a session-enumeration API: it accepts only the caller's opaque HTTP-only cookie and reveals no session identifiers or account details. It is a GET request and does not bypass CSRF protections for state-changing operations. Do not use client-side validity as an authorization boundary; protected server routes and the upstream API remain authoritative.
+
+The global route middleware waits for an in-progress authentication state transition to leave `loading` before making a redirect decision. A temporary loading state is not treated as an anonymous session.
+
+During SSR the liveness composable is a no-op. The initial user snapshot can be hydrated as before; a client-side probe can then confirm the underlying session. A network, timeout, Redis, or other non-401 error produces `unavailable` and does not clear authentication state. Only a confirmed unauthenticated response produces `invalid`.

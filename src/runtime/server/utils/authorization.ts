@@ -155,3 +155,7 @@ export function requireAbility(
 
   return session;
 }
+
+
+// Server-only session lifecycle API; kept behind the package's server export.
+export { validateBearerAuthSession } from "./sessions";

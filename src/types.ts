@@ -115,10 +115,52 @@ export interface BearerAuthPrivateRuntimeConfig {
  * Shape of the public `runtimeConfig.public.bearerAuth` namespace.
  * Only serializable, browser-safe values are allowed here.
  */
+export interface BearerAuthSessionLivenessConfig {
+  /** Enables automatic client-side validation triggers. Manual validation remains available. */
+  enabled: boolean;
+  /** Periodic validation interval in milliseconds. Set to 0 to disable the timer. */
+  intervalMs: number;
+  /** Minimum time between validation requests, regardless of trigger. */
+  minIntervalMs: number;
+  validateOnMount: boolean;
+  validateOnFocus: boolean;
+  validateOnVisibilityChange: boolean;
+  validateOnNavigation: boolean;
+  /** Skip periodic and event-triggered probes while the document is hidden. */
+  onlyWhenVisible: boolean;
+  /** Synchronise logout and confirmed expiry between tabs. */
+  crossTab: boolean;
+  /** BroadcastChannel name and storage-fallback namespace. */
+  channelName: string;
+}
+
+export type BearerAuthSessionValidity =
+  | "unknown"
+  | "valid"
+  | "invalid"
+  | "unavailable";
+
+export type BearerAuthSessionValidationResult =
+  | "valid"
+  | "invalid"
+  | "unavailable"
+  | "skipped";
+
+export interface UseBearerAuthSessionOptions
+  extends Partial<
+    Omit<BearerAuthSessionLivenessConfig, "crossTab" | "channelName">
+  > {
+  /** Called when this tab or another tab confirms that the session is invalid. */
+  onSessionInvalidated?: () => void;
+  /** Called when a liveness probe cannot establish session validity. */
+  onValidationError?: (error: unknown) => void;
+}
+
 export interface BearerAuthPublicRuntimeConfig {
   redirects: Required<BearerAuthRedirectOptions>;
   routes: Required<BearerAuthRouteOptions>;
   authorizationEnabled: boolean;
+  sessionLiveness: BearerAuthSessionLivenessConfig;
 }
 
 export interface BearerAuthModuleOptions {
@@ -134,6 +176,7 @@ export interface BearerAuthModuleOptions {
   sessionCookie?: Partial<BearerAuthCookieOptions>;
   csrf?: Partial<BearerAuthCsrfOptions>;
   authorization?: Partial<BearerAuthAuthorizationConfig>;
+  sessionLiveness?: Partial<BearerAuthSessionLivenessConfig>;
   verificationRequiredActions?: string[];
   twoFactorRequiredActions?: string[];
 }

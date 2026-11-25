@@ -21,6 +21,7 @@ export default defineEventHandler(async (event) => {
 
   const path = getRequestURL(event).pathname;
   const method = event.method.toUpperCase();
+  const sessionLivenessPath = `${publicConfig.routes.localApiPrefix}/session`;
   const strictPrefixMatching =
     publicConfig.routes.strictPrefixMatching === true;
   const isProtectedApi = publicConfig.routes.protectedApiPrefixes.some(
@@ -30,7 +31,12 @@ export default defineEventHandler(async (event) => {
     matchesPathPrefix(path, prefix, strictPrefixMatching),
   );
 
-  if (isPublicApi || (!isProtectedApi && SAFE_METHODS.has(method))) {
+  // Exact-path exemption only: do not turn similarly-prefixed API routes public.
+  if (
+    isPublicApi ||
+    path === sessionLivenessPath ||
+    (!isProtectedApi && SAFE_METHODS.has(method))
+  ) {
     return;
   }
 

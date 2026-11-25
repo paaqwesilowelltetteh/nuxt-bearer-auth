@@ -29,6 +29,40 @@ permissions:
   contents: read
 
 jobs:
+  module-tests:
+    name: Module tests and typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - name: Use the package-declared npm version
+        run: |
+          npm install --global npm@10.0.0
+          test "$(node --version)" = "v24.19.0"
+          test "$(npm --version)" = "10.0.0"
+      - name: Install module development dependencies
+        run: npm ci --legacy-peer-deps
+      - name: Prepare module and Nuxt types
+        run: npm run dev:prepare
+      - name: Run unit and real-Redis integration tests
+        run: npm test
+      - name: Type-check module and tests
+        run: npm run typecheck
+
   consumer-build:
     name: Nuxt ${{ matrix.nuxt }} on Node.js ${{ matrix.node }}
     runs-on: ubuntu-latest

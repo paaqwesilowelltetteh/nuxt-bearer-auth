@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { computed, nextTick, ref } from "vue";
 
 const mockPublicAuth = {
   redirects: {
@@ -26,13 +27,24 @@ vi.mock("#app", () => ({
   }),
 }));
 
+const mockStatus = ref("unauthenticated");
 const mockAuth = {
-  isAuthenticated: { value: false },
-  abilities: { value: null as string[] | null },
-  ready: { value: true },
+  isAuthenticated: ref(false),
+  status: mockStatus,
+  loading: computed(() => mockStatus.value === "loading"),
+  abilities: ref(null as string[] | null),
+  ready: ref(true),
   serverReady: { value: Promise.resolve() },
   fetchUser: vi.fn(),
 };
+
+beforeEach(() => {
+  mockAuth.isAuthenticated.value = false;
+  mockStatus.value = "unauthenticated";
+  mockAuth.abilities.value = null;
+  mockAuth.ready.value = true;
+  mockNavigateTo.mockClear();
+});
 
 vi.mock("../src/runtime/composables/useBearerAuth", () => ({
   useBearerAuth: () => mockAuth,
@@ -92,6 +104,29 @@ describe("Route Middleware (bearer-auth.global.ts)", () => {
     };
     await (bearerAuthRouteMiddleware as any)(toLoginWithRedirect);
     expect(mockNavigateTo).toHaveBeenCalledWith("/settings");
+  });
+
+  it("waits for authentication loading to settle before redirecting", async () => {
+    mockAuth.isAuthenticated.value = false;
+    mockStatus.value = "loading";
+    mockNavigateTo.mockClear();
+
+    const pending = (bearerAuthRouteMiddleware as any)({
+      path: "/dashboard",
+      fullPath: "/dashboard",
+      query: {},
+      meta: {},
+    });
+
+    expect(mockNavigateTo).not.toHaveBeenCalled();
+
+    mockAuth.isAuthenticated.value = true;
+    mockStatus.value = "authenticated";
+    await nextTick();
+
+    const result = await pending;
+    expect(result).toBeUndefined();
+    expect(mockNavigateTo).not.toHaveBeenCalled();
   });
 
   it("allows authenticated user to access protected routes", async () => {

@@ -162,6 +162,45 @@ export async function updateBearerAuthSession<User extends BearerAuthUser>(
   return true;
 }
 
+/**
+ * Checks whether the opaque-cookie-backed Redis session is currently valid.
+ *
+ * This is intentionally a read-only operation: it does not renew Redis TTL,
+ * update activity metadata, delete malformed/expired records, or modify cookies.
+ * Redis connection/read failures are allowed to propagate so callers can
+ * distinguish infrastructure failure from an invalid session.
+ */
+export async function validateBearerAuthSession(
+  event: H3Event,
+): Promise<boolean> {
+  const sessionId = getBearerAuthSessionCookie(event);
+  if (!sessionId) return false;
+
+  const redis = await ensureBearerAuthRedisConnection();
+  const data = await redis.get(`${SESSION_PREFIX}${sessionId}`);
+  if (!data) return false;
+
+  let session: unknown;
+  try {
+    session = JSON.parse(data);
+  } catch {
+    return false;
+  }
+
+  if (!session || typeof session !== "object") return false;
+
+  const record = session as Partial<BearerAuthSession>;
+  return (
+    typeof record.userId === "string" &&
+    record.userId.length > 0 &&
+    typeof record.token === "string" &&
+    record.token.length > 0 &&
+    typeof record.expiresAt === "number" &&
+    Number.isFinite(record.expiresAt) &&
+    record.expiresAt > Date.now()
+  );
+}
+
 export async function getBearerAuthSession<User extends BearerAuthUser>(
   event: H3Event,
 ): Promise<BearerAuthSession<User> | null> {
