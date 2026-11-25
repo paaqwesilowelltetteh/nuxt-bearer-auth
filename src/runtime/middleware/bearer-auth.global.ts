@@ -1,4 +1,5 @@
 import { defineNuxtRouteMiddleware, navigateTo, useRuntimeConfig } from "#app";
+import { watch } from "vue";
 import { useBearerAuth } from "../composables/useBearerAuth";
 import type { AuthorizationRouteRequirement } from "../../types";
 
@@ -45,6 +46,19 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   if (import.meta.client && !auth.ready.value) {
     await auth.fetchUser();
+  }
+
+  // A profile fetch, login, or refresh can temporarily set status to loading.
+  // Do not interpret that transitional state as an anonymous user and redirect.
+  if (auth.loading.value) {
+    await new Promise<void>((resolve) => {
+      const stop = watch(auth.status, (status) => {
+        if (status !== "loading") {
+          stop();
+          resolve();
+        }
+      });
+    });
   }
 
   if (auth.isAuthenticated.value && isAuthPage) {
