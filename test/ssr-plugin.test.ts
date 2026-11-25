@@ -9,6 +9,7 @@ const mockAuth = {
   setUser: vi.fn(),
   setAbilities: vi.fn(),
   clearAuthState: vi.fn(),
+  setAuthUnavailable: vi.fn(),
   setAuthReady: vi.fn(),
   setServerChecked: vi.fn(),
 };
@@ -96,10 +97,11 @@ describe("SSR Server Plugin (bearer-auth.server.ts)", () => {
 
     await (bearerAuthServerPlugin as any)(nuxtApp);
 
-    expect(mockAuth.clearAuthState).toHaveBeenCalled();
+    expect(mockAuth.setAuthUnavailable).toHaveBeenCalled();
+    expect(mockAuth.clearAuthState).not.toHaveBeenCalled();
     expect(nuxtApp.payload.bearerAuth).toEqual({
       user: null,
-      status: "unauthenticated",
+      status: "unavailable",
       abilities: null,
     });
     expect(mockAuth.setAuthReady).toHaveBeenCalledWith(true);
